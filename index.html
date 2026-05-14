@@ -2854,12 +2854,21 @@ function renderDailyUI(existing=null, mmHTML='') {
   // 야근 행
   const otEntryRows = [...sorted.map(p=>{
     const oe=(ot.entries||[]).find(e=>e.projectId===p.id);
-    return {id:p.id,name:p.name,pct:oe?.percent||''};
-  }), {id:'etc',name:'🗂 기타',pct:(ot.entries||[]).find(e=>e.projectId==='etc')?.percent||''}]
+    const pct = oe?.percent||'';
+    const otH = parseFloat(ot.hours||0);
+    const mins = pct ? Math.round(pct * otH * 60 / 100) : 0;
+    return {id:p.id, name:p.name, pct, dH: mins>0?Math.floor(mins/60):'', dM: mins>0?(mins%60):''};
+  }), {id:'etc', name:'🗂 기타', pct:(ot.entries||[]).find(e=>e.projectId==='etc')?.percent||'', dH:'', dM:''}]
   .map(r=>`<div class="entry-row">
     <div class="entry-name" style="font-size:13px;padding-left:6px">${r.name}</div>
-    <input type="number" class="entry-input ot-pct" data-pid="${r.id}" value="${r.pct}" min="0" max="100" placeholder="0" oninput="calcOtTotal()">
-    <div class="entry-hours ot-hrs">${r.pct?((parseFloat($('ot-hrs-input')?.value||0))*r.pct/100).toFixed(1)+'h':'- h'}</div>
+    <div class="time-grp">
+      <input class="time-inp ot-h-inp" type="number" data-pid="${r.id}" value="${r.dH}" min="0" max="12" placeholder="0" oninput="syncOTTimeToPct('${r.id}')">
+      <span class="time-sep">h</span>
+      <input class="time-inp ot-m-inp" type="number" data-pid="${r.id}" value="${r.dM}" min="0" max="59" step="5" placeholder="0" oninput="syncOTTimeToPct('${r.id}')">
+      <span class="time-sep">m</span>
+    </div>
+    <span class="bidir">↔</span>
+    <input type="number" class="entry-input ot-pct" data-pid="${r.id}" value="${r.pct}" min="0" max="100" placeholder="%" oninput="syncOTPctToTime('${r.id}');autoFillLast('ot-pct');calcOtTotal()">
   </div>`).join('');
 
   const editBar = isAlreadySubmitted ? `
@@ -2919,8 +2928,7 @@ function renderDailyUI(existing=null, mmHTML='') {
             <div class="overtime-header">야근 정보 입력</div>
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
               <input type="number" id="ot-hrs-input" class="form-control" style="width:100px" min="0.5" max="12" step="0.5" placeholder="0" value="${ot.hours||''}" oninput="renderOTEntries()">
-              <span class="text-muted">시간</span>
-              <span class="text-muted" id="ot-cost-preview"></span>
+              <span class="text-muted">시간 (야근 총 시간)</span>
             </div>
             <div id="ot-entries">${otEntryRows}</div>
             <div class="divider"></div>
@@ -2958,7 +2966,7 @@ function toggleEtcMemo() {
 function autoFillLast(cls) {
   const inputs = [...document.querySelectorAll('.' + cls)];
   const empty  = inputs.filter(inp => !(parseInt(inp.value) > 0));
-  if (empty.length !== 1) return; // 빈 칸이 정확히 1개일 때만
+  if (empty.length !== 1) return;
   const total  = inputs.reduce((s, inp) => s + (parseInt(inp.value)||0), 0);
   if (total > 0 && total < 100) {
     const remaining = 100 - total;
@@ -2967,6 +2975,33 @@ function autoFillLast(cls) {
     if (cls === 'daily-pct') syncPctToTime(pid);
     else                     syncOTPctToTime(pid);
   }
+}
+
+// 모든 칸이 채워지면 시간 기반 비례 배분 → 항상 합계 100%
+function redistributeByTime(pctCls, hCls, mCls) {
+  const pctInputs = [...document.querySelectorAll('.' + pctCls)];
+  if (pctInputs.some(inp => !(parseInt(inp.value) > 0))) return; // 빈 칸 있으면 skip
+
+  const entries = pctInputs.map(inp => {
+    const pid  = inp.dataset.pid;
+    const hInp = document.querySelector(`.${hCls}[data-pid="${pid}"]`);
+    const mInp = document.querySelector(`.${mCls}[data-pid="${pid}"]`);
+    const mins = (parseInt(hInp?.value)||0)*60 + (parseInt(mInp?.value)||0);
+    return { inp, mins };
+  });
+  const totalMins = entries.reduce((s, e) => s + e.mins, 0);
+  if (totalMins === 0) return;
+
+  let rem = 100;
+  entries.forEach((e, i) => {
+    if (i === entries.length - 1) {
+      e.inp.value = Math.max(0, rem); // 마지막 칸 = 나머지
+    } else {
+      const pct = Math.floor(e.mins / totalMins * 100);
+      e.inp.value = pct;
+      rem -= pct;
+    }
+  });
 }
 
 function syncTimeToPct(pid) {
@@ -2978,6 +3013,8 @@ function syncTimeToPct(pid) {
   const pctInp = document.querySelector(`.daily-pct[data-pid="${pid}"]`);
   if (!pctInp) return;
   pctInp.value = totalMins > 0 ? Math.round(totalMins / (baseHours * 60) * 100) : '';
+  // 모두 채워진 경우 비례 재배분 → 100% 보장
+  redistributeByTime('daily-pct', 'time-h-inp', 'time-m-inp');
   if (pid === 'etc') toggleEtcMemo();
   autoFillLast('daily-pct');
   calcDailyTotal();
@@ -3004,6 +3041,7 @@ function syncOTTimeToPct(pid) {
   const pctInp = document.querySelector(`.ot-pct[data-pid="${pid}"]`);
   if (!pctInp) return;
   pctInp.value = (otHrs > 0 && totalMins > 0) ? Math.round(totalMins / (otHrs * 60) * 100) : '';
+  redistributeByTime('ot-pct', 'ot-h-inp', 'ot-m-inp');
   autoFillLast('ot-pct');
   calcOtTotal();
 }
@@ -3071,25 +3109,26 @@ function toggleOT() {
 
 function renderOTEntries() {
   const hrs  = parseFloat($('ot-hrs-input')?.value)||0;
-  const prev = $('ot-cost-preview');
-  if (prev && hrs>0) {
-    const addCost = hrs * HOURLY_RATE * 2;
-    prev.textContent = `(추가비용: ${fmt(addCost)})`;
-  }
   const cont = $('ot-entries');
   if (!cont) return;
   const rows = [
-    ...myProjects.map(p=>({id:p.id,name:p.name})),
-    {id:'etc',name:'🗂 기타'}
+    ...sortProjects(myProjects).map(p=>({id:p.id,name:p.name})),
+    {id:'etc', name:'🗂 기타'}
   ].map(r => {
-    const old = cont.querySelector(`[data-pid="${r.id}"]`);
-    const val = old?.value||'';
-    const h   = hrs>0&&val ? (hrs*val/100).toFixed(1)+'h' : '- h';
+    const oldPct = cont.querySelector(`.ot-pct[data-pid="${r.id}"]`)?.value || '';
+    const mins   = oldPct && hrs ? Math.round(oldPct * hrs * 60 / 100) : 0;
+    const dH     = mins > 0 ? Math.floor(mins/60) : '';
+    const dM     = mins > 0 ? (mins%60) : '';
     return `<div class="entry-row">
-      <div class="entry-name" style="font-size:13px">${r.name}</div>
-      <input type="number" class="entry-input ot-pct" data-pid="${r.id}" value="${val}"
-        min="0" max="100" placeholder="0" oninput="calcOtTotal()">
-      <div class="entry-hours ot-hrs">${h}</div>
+      <div class="entry-name" style="font-size:13px;padding-left:6px">${r.name}</div>
+      <div class="time-grp">
+        <input class="time-inp ot-h-inp" type="number" data-pid="${r.id}" value="${dH}" min="0" max="12" placeholder="0" oninput="syncOTTimeToPct('${r.id}')">
+        <span class="time-sep">h</span>
+        <input class="time-inp ot-m-inp" type="number" data-pid="${r.id}" value="${dM}" min="0" max="59" step="5" placeholder="0" oninput="syncOTTimeToPct('${r.id}')">
+        <span class="time-sep">m</span>
+      </div>
+      <span class="bidir">↔</span>
+      <input type="number" class="entry-input ot-pct" data-pid="${r.id}" value="${oldPct}" min="0" max="100" placeholder="%" oninput="syncOTPctToTime('${r.id}');autoFillLast('ot-pct');calcOtTotal()">
     </div>`;
   }).join('');
   cont.innerHTML = rows;
@@ -3097,15 +3136,10 @@ function renderOTEntries() {
 }
 
 function calcOtTotal() {
-  const hrs  = parseFloat($('ot-hrs-input')?.value)||0;
   const inputs = document.querySelectorAll('.ot-pct');
+  const hrs    = parseFloat($('ot-hrs-input')?.value)||0;
   let total = 0;
-  inputs.forEach(inp => {
-    const v = parseInt(inp.value)||0;
-    total += v;
-    const hrs2 = inp.closest('.entry-row').querySelector('.ot-hrs');
-    if (hrs2) hrs2.textContent = (v>0&&hrs>0) ? (hrs*v/100).toFixed(1)+'h' : '- h';
-  });
+  inputs.forEach(inp => { total += parseInt(inp.value)||0; });
   const disp = $('ot-total');
   if (!disp) return;
   if (total===100) { disp.textContent=`${total}% ✅`; disp.className='total-ok'; }
