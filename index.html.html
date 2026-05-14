@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Kaon-PEMS v1.3.5</title>
+<title>Kaon-PEMS v1.3.6</title>
 
 <!-- Firebase SDK (v9 compat) -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -609,9 +609,11 @@ select.form-control { cursor: pointer; }
 .time-inp { width:40px;padding:6px 4px;border:1.5px solid var(--border);border-radius:7px;text-align:center;font-size:13px;font-weight:600;transition:border-color .12s; }
 .time-inp:focus { outline:none;border-color:var(--primary-light); }
 .time-sep { font-size:11px;color:var(--text-3);padding:0 1px;font-weight:500; }
-.time-divider { font-size:13px;color:var(--border);padding:0 5px; }
+.bidir { font-size:12px;color:var(--primary-light);font-weight:800;padding:0 5px;flex-shrink:0; }
 .entry-row .entry-input { width:60px; }
 .total-time-hint { font-size:12px;color:var(--text-3);font-weight:500; }
+.entry-col-hdr { display:flex;align-items:center;gap:10px;padding:0 0 7px;border-bottom:1px solid #F1F5F9;margin-bottom:4px; }
+.entry-col-hdr .ch { font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em; }
 
 /* === LOGIN OPTIONS === */
 .login-options { display:flex; gap:20px; margin:14px 0 4px; }
@@ -1434,7 +1436,7 @@ select.form-control { cursor: pointer; }
 // ============================================================
 // 버전 관리  x.x.x = 메이저.마이너.패치
 // ============================================================
-const APP_VERSION = 'v1.3.5';
+const APP_VERSION = 'v1.3.6';
 
 const CHANGELOG = [
   {
@@ -2819,12 +2821,12 @@ function renderDailyUI(existing=null, mmHTML='') {
       <div class="entry-name">${p.name}</div>
       <div class="time-grp">
         <input class="time-inp time-h-inp" type="number" data-pid="${p.id}" value="${h}" min="0" max="23" placeholder="0" oninput="syncTimeToPct('${p.id}')">
-        <span class="time-sep">시간</span>
+        <span class="time-sep">h</span>
         <input class="time-inp time-m-inp" type="number" data-pid="${p.id}" value="${m}" min="0" max="59" step="5" placeholder="0" oninput="syncTimeToPct('${p.id}')">
-        <span class="time-sep">분</span>
+        <span class="time-sep">m</span>
       </div>
-      <span class="time-divider">|</span>
-      <input type="number" class="entry-input daily-pct" data-pid="${p.id}" value="${pct}" min="0" max="100" placeholder="%" oninput="syncPctToTime('${p.id}');calcDailyTotal()">
+      <span class="bidir">↔</span>
+      <input type="number" class="entry-input daily-pct" data-pid="${p.id}" value="${pct}" min="0" max="100" placeholder="%" oninput="syncPctToTime('${p.id}');autoFillLast('daily-pct');calcDailyTotal()">
     </div>`;
   }).join('');
 
@@ -2833,17 +2835,17 @@ function renderDailyUI(existing=null, mmHTML='') {
   const etcPct   = etcEntry?.percent||'';
   const etcMemo  = etcEntry?.memo||'';
   const {h:etcH, m:etcM} = pctToHM(etcPct);
-  const etcRow   = `<div class="entry-row">
+  const etcRow = `<div class="entry-row">
     <button class="fav-btn" style="opacity:0;cursor:default">⭐</button>
     <div class="entry-name">🗂 기타 (서류/관리업무)</div>
     <div class="time-grp">
       <input class="time-inp time-h-inp" type="number" data-pid="etc" value="${etcH}" min="0" max="23" placeholder="0" oninput="syncTimeToPct('etc')">
-      <span class="time-sep">시간</span>
+      <span class="time-sep">h</span>
       <input class="time-inp time-m-inp" type="number" data-pid="etc" value="${etcM}" min="0" max="59" step="5" placeholder="0" oninput="syncTimeToPct('etc')">
-      <span class="time-sep">분</span>
+      <span class="time-sep">m</span>
     </div>
-    <span class="time-divider">|</span>
-    <input type="number" class="entry-input daily-pct" data-pid="etc" value="${etcPct}" min="0" max="100" placeholder="%" oninput="syncPctToTime('etc');calcDailyTotal();toggleEtcMemo()">
+    <span class="bidir">↔</span>
+    <input type="number" class="entry-input daily-pct" data-pid="etc" value="${etcPct}" min="0" max="100" placeholder="%" oninput="syncPctToTime('etc');autoFillLast('daily-pct');calcDailyTotal();toggleEtcMemo()">
   </div>
   <div id="etc-memo-wrap" class="memo-wrap${etcPct?'':' hidden'}">
     <textarea class="memo-inp" id="etc-memo" placeholder="기타 업무 내용을 간략히 입력하세요 (예: 제안서 작성, 주간보고)">${etcMemo}</textarea>
@@ -2885,6 +2887,14 @@ function renderDailyUI(existing=null, mmHTML='') {
         </div>
       </div>
       <div class="card-body">
+        <!-- 컬럼 헤더 -->
+        <div class="entry-col-hdr">
+          <span style="width:22px"></span>
+          <span class="ch" style="flex:1">프로젝트</span>
+          <span class="ch">⏱ 시간 입력</span>
+          <span class="bidir">↔</span>
+          <span class="ch" style="width:60px;text-align:center">% 입력</span>
+        </div>
         <div id="daily-entries">${entryRows}${etcRow}</div>
         <div class="progress-wrap"><div class="progress-fill" id="di-bar" style="width:0%"></div></div>
         <div class="total-row">
@@ -2944,6 +2954,21 @@ function toggleEtcMemo() {
 }
 
 // ── 시간 ↔ % 동기화 ─────────────────────────────────────
+// 마지막 빈 항목에 나머지 % 자동 배정 (B안)
+function autoFillLast(cls) {
+  const inputs = [...document.querySelectorAll('.' + cls)];
+  const empty  = inputs.filter(inp => !(parseInt(inp.value) > 0));
+  if (empty.length !== 1) return; // 빈 칸이 정확히 1개일 때만
+  const total  = inputs.reduce((s, inp) => s + (parseInt(inp.value)||0), 0);
+  if (total > 0 && total < 100) {
+    const remaining = 100 - total;
+    empty[0].value  = remaining;
+    const pid = empty[0].dataset.pid;
+    if (cls === 'daily-pct') syncPctToTime(pid);
+    else                     syncOTPctToTime(pid);
+  }
+}
+
 function syncTimeToPct(pid) {
   const hInp = document.querySelector(`.time-h-inp[data-pid="${pid}"]`);
   const mInp = document.querySelector(`.time-m-inp[data-pid="${pid}"]`);
@@ -2954,6 +2979,7 @@ function syncTimeToPct(pid) {
   if (!pctInp) return;
   pctInp.value = totalMins > 0 ? Math.round(totalMins / (baseHours * 60) * 100) : '';
   if (pid === 'etc') toggleEtcMemo();
+  autoFillLast('daily-pct');
   calcDailyTotal();
 }
 
@@ -2963,6 +2989,32 @@ function syncPctToTime(pid) {
   const totalMins = Math.round(pct * baseHours * 60 / 100);
   const hInp = document.querySelector(`.time-h-inp[data-pid="${pid}"]`);
   const mInp = document.querySelector(`.time-m-inp[data-pid="${pid}"]`);
+  if (hInp) hInp.value = totalMins > 0 ? Math.floor(totalMins/60) : '';
+  if (mInp) mInp.value = totalMins > 0 ? (totalMins%60) : '';
+}
+
+// 야근 시간 ↔ %
+function syncOTTimeToPct(pid) {
+  const hInp = document.querySelector(`.ot-h-inp[data-pid="${pid}"]`);
+  const mInp = document.querySelector(`.ot-m-inp[data-pid="${pid}"]`);
+  const h = parseInt(hInp?.value) || 0;
+  const m = parseInt(mInp?.value) || 0;
+  const totalMins = h * 60 + m;
+  const otHrs  = parseFloat($('ot-hrs-input')?.value) || 0;
+  const pctInp = document.querySelector(`.ot-pct[data-pid="${pid}"]`);
+  if (!pctInp) return;
+  pctInp.value = (otHrs > 0 && totalMins > 0) ? Math.round(totalMins / (otHrs * 60) * 100) : '';
+  autoFillLast('ot-pct');
+  calcOtTotal();
+}
+
+function syncOTPctToTime(pid) {
+  const pctInp = document.querySelector(`.ot-pct[data-pid="${pid}"]`);
+  const pct    = parseInt(pctInp?.value) || 0;
+  const otHrs  = parseFloat($('ot-hrs-input')?.value) || 0;
+  const totalMins = Math.round(pct * otHrs * 60 / 100);
+  const hInp = document.querySelector(`.ot-h-inp[data-pid="${pid}"]`);
+  const mInp = document.querySelector(`.ot-m-inp[data-pid="${pid}"]`);
   if (hInp) hInp.value = totalMins > 0 ? Math.floor(totalMins/60) : '';
   if (mInp) mInp.value = totalMins > 0 ? (totalMins%60) : '';
 }
