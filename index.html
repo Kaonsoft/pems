@@ -608,9 +608,17 @@ select.form-control { cursor: pointer; }
 .time-grp { display:flex;align-items:center;gap:2px;flex-shrink:0; }
 .time-inp { width:40px;padding:6px 4px;border:1.5px solid var(--border);border-radius:7px;text-align:center;font-size:13px;font-weight:600;transition:border-color .12s; }
 .time-inp:focus { outline:none;border-color:var(--primary-light); }
+/* 스피너 화살표 제거 — 실수 클릭 방지 */
+.time-inp::-webkit-inner-spin-button,
+.time-inp::-webkit-outer-spin-button { -webkit-appearance:none; margin:0; }
+.time-inp { -moz-appearance:textfield; }
 .time-sep { font-size:11px;color:var(--text-3);padding:0 1px;font-weight:500; }
 .bidir { font-size:12px;color:var(--primary-light);font-weight:800;padding:0 5px;flex-shrink:0; }
 .entry-row .entry-input { width:60px; }
+/* % 입력창 스피너 제거 */
+.entry-input::-webkit-inner-spin-button,
+.entry-input::-webkit-outer-spin-button { -webkit-appearance:none; margin:0; }
+.entry-input { -moz-appearance:textfield; }
 .total-time-hint { font-size:12px;color:var(--text-3);font-weight:500; }
 .entry-col-hdr { display:flex;align-items:center;gap:10px;padding:0 0 7px;border-bottom:1px solid #F1F5F9;margin-bottom:4px; }
 .entry-col-hdr .ch { font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em; }
