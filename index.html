@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Kaon-PEMS v1.3.8</title>
+<title>Kaon-PEMS v1.4.0</title>
 
 <!-- Firebase SDK (v9 compat) -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -273,6 +273,46 @@ tr:hover td { background: #FAFBFC; }
 .badge-gray { background: #F1F5F9; color: #64748B; }
 .badge-purple { background: #F3E8FF; color: #7C3AED; }
 .badge-invest { background:#EDE9FE;color:#6D28D9;font-size:11px;padding:2px 8px;border-radius:4px;font-weight:700; }
+
+/* ── 위클리 보고 ── */
+.week-nav { display:flex;align-items:center;justify-content:space-between;margin-bottom:14px; }
+.week-label { font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px; }
+.week-tabs { display:flex;gap:4px;margin-bottom:16px; }
+.week-tab { padding:8px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:1.5px solid var(--border);background:white;color:var(--text-2);transition:all .12s; }
+.week-tab.active { background:var(--primary-light);color:white;border-color:var(--primary-light); }
+.weekly-row { display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid #F8FAFC; }
+.weekly-row:last-child { border-bottom:none; }
+.wpriority { width:90px;padding:6px 8px;border:1.5px solid var(--border);border-radius:7px;font-size:12px;background:white; }
+.wproject { width:130px;padding:6px 8px;border:1.5px solid var(--border);border-radius:7px;font-size:12px;background:white; }
+.wtask { flex:1;padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px; }
+.wtask:focus { outline:none;border-color:var(--primary-light); }
+.wstatus { width:115px;padding:6px 8px;border:1.5px solid var(--border);border-radius:7px;font-size:12px;background:white; }
+.wmemo { width:150px;padding:6px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:12px; }
+.wmemo:focus { outline:none;border-color:var(--primary-light); }
+.wdel-btn { width:24px;height:24px;border:none;background:none;color:var(--text-3);cursor:pointer;font-size:15px;flex-shrink:0;border-radius:4px; }
+.wdel-btn:hover { color:var(--danger);background:#FEE2E2; }
+.repeat-badge { padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;background:#FEF3C7;color:#D97706;white-space:nowrap;flex-shrink:0; }
+.carry-badge { padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;background:#EDE9FE;color:#6D28D9;white-space:nowrap;flex-shrink:0; }
+.priority-label { padding:3px 8px;border-radius:4px;font-size:11px;font-weight:700;width:60px;text-align:center;flex-shrink:0; }
+.pl-high { background:#FEE2E2;color:#DC2626; }
+.pl-medium { background:#FEF3C7;color:#D97706; }
+.pl-low { background:#D1FAE5;color:#059669; }
+.weekly-section-title { font-size:11px;font-weight:700;color:var(--text-2);text-transform:uppercase;letter-spacing:.05em;margin:14px 0 8px;padding-bottom:6px;border-bottom:1px solid var(--border); }
+.weekly-col-hdr { display:flex;align-items:center;gap:8px;padding:0 0 6px;margin-bottom:2px; }
+.weekly-col-hdr span { font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em; }
+.weekly-admin-row { display:flex;align-items:center;padding:12px 16px;border-bottom:1px solid #F8FAFC;gap:12px;cursor:pointer;transition:background .12s; }
+.weekly-admin-row:hover { background:#FAFBFC; }
+
+/* 결과 행 2줄 구조 */
+.wrr { padding:12px 0;border-bottom:1px solid #F8FAFC; }
+.wrr:last-child { border-bottom:none; }
+.wrr-top { display:flex;align-items:center;gap:10px;margin-bottom:8px; }
+.wrr-proj { width:130px;font-size:12px;color:var(--text-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0; }
+.wrr-task { flex:1;font-size:13px;font-weight:500;display:flex;align-items:center;gap:8px;flex-wrap:wrap; }
+.wrr-bot { display:flex;align-items:flex-start;gap:10px;padding-left:70px; }
+.wmemo-area { flex:1;padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:12px;resize:vertical;min-height:52px;font-family:inherit;line-height:1.6;color:var(--text-1); }
+.wmemo-area:focus { outline:none;border-color:var(--primary-light); }
+.wmemo-area::placeholder { color:var(--text-3); }
 
 /* === MODALS === */
 .modal-overlay {
@@ -1064,7 +1104,18 @@ select.form-control { cursor: pointer; }
       </div>
     </div>
 
-    <!-- ─── 업무 입력 (관리자 + 권한 멤버 공용) ─── -->
+    <!-- ─── 위클리 보고 ─── -->
+    <div id="view-weekly" class="view hidden">
+      <div class="page-header">
+        <div>
+          <div class="page-title">📋 위클리 업무 보고</div>
+          <div class="page-subtitle" id="weekly-subtitle"></div>
+        </div>
+      </div>
+      <div id="weekly-content"></div>
+    </div>
+
+    <!-- ─── 업무 입력 ─── -->
     <div id="view-daily-input" class="view hidden">
       <div class="page-header">
         <div>
@@ -1309,6 +1360,17 @@ select.form-control { cursor: pointer; }
   </div>
 </div>
 
+<!-- Member Weekly Modal -->
+<div id="modal-wk-member" class="modal-overlay hidden" style="z-index:1050">
+  <div class="modal" style="max-width:680px">
+    <div class="modal-header">
+      <div class="modal-title" id="wk-modal-title">위클리 보고서</div>
+      <button class="modal-close" onclick="closeModal('modal-wk-member')">✕</button>
+    </div>
+    <div class="modal-body" id="wk-modal-body" style="max-height:70vh;overflow-y:auto"></div>
+  </div>
+</div>
+
 <!-- Profile Modal -->
 <div id="modal-profile" class="modal-overlay hidden">
   <div class="modal" style="max-width:420px">
@@ -1477,9 +1539,105 @@ select.form-control { cursor: pointer; }
 // ============================================================
 // 버전 관리  x.x.x = 메이저.마이너.패치
 // ============================================================
-const APP_VERSION = 'v1.3.8';
+const APP_VERSION = 'v1.4.0';
 
 const CHANGELOG = [
+  {
+    version: 'v1.3.8',
+    date: '2026-05-18',
+    type: 'patch',
+    label: '패치',
+    items: [
+      '반차 선택 시 기준 시간 4시간으로 정확히 반영 (3중 안전장치)',
+      '연차 화면 취소 버튼 추가 — 클릭 시 일반 근무 입력으로 복귀',
+      '연차 재방문 시 "재제출" 버튼으로 표시 변경',
+      '연차 화면에서 "수정 후 재제출" 배너 숨김 처리',
+    ]
+  },
+  {
+    version: 'v1.3.7',
+    date: '2026-05-18',
+    type: 'patch',
+    label: '패치',
+    items: [
+      '프로젝트 생성 시 투자사업(자체 R&D) 체크박스 추가',
+      '투자사업 선택 시 예산 0원 고정, 인건비 투자액 자동 산출 안내',
+      '프로젝트 목록에 투자사업 배지 표시',
+      '프로젝트 추가 시 기업 목록 가나다/ABC 순 정렬',
+    ]
+  },
+  {
+    version: 'v1.3.6',
+    date: '2026-05-14',
+    type: 'minor',
+    label: '기능 개선',
+    items: [
+      '업무 입력 방식 C안으로 전면 개편 — % 입력 → 시간 자동계산',
+      '퀵버튼 추가: 10% 20% 25% 50% 100% 원클릭 선택',
+      '나머지 채우기 버튼 — 100%에서 다른 항목 합계를 뺀 값 자동 입력',
+      '비례조정 버튼 — 현재 비율 유지하며 합계 100%로 재배분',
+      '야근도 동일하게 % 입력 + 시간 자동계산 방식 적용',
+      '야근 비용 표시 삭제',
+      '스피너 화살표 제거 — 실수 클릭으로 자동 채워지는 버그 수정',
+      'autoFillLast를 onblur(입력 완료)로 이동 — 타이핑 중 자동 채움 방지',
+    ]
+  },
+  {
+    version: 'v1.3.5',
+    date: '2026-05-14',
+    type: 'patch',
+    label: '패치',
+    items: [
+      '미입력 현황 계산 기준 수정 — 개발자 가입일 이후 + 오늘 이전 날짜만 체크',
+      'toDateStr 미정의 오류 수정',
+    ]
+  },
+  {
+    version: 'v1.3.4',
+    date: '2026-05-14',
+    type: 'patch',
+    label: '패치',
+    items: [
+      '권한설정 모달 z-index 수정 — 개발자 상세 모달 뒤에 가려지는 버그 수정',
+      'savePermissions 후 인덱스 오류 수정 (loadMembers → loadAll + renderDevelopers)',
+      '권한 저장 후 두 모달 모두 닫고 목록 새로고침',
+    ]
+  },
+  {
+    version: 'v1.3.3',
+    date: '2026-05-14',
+    type: 'patch',
+    label: '패치',
+    items: [
+      '사이드바 사용자 정보 클릭 → 프로필 수정 모달',
+      '수정 가능: 이름, 담당업무 / 수정 불가: 이메일',
+    ]
+  },
+  {
+    version: 'v1.3.2',
+    date: '2026-05-14',
+    type: 'minor',
+    label: '기능 개선',
+    items: [
+      '모든 사용자 관리자 레이아웃 사용 — 동적 사이드바 생성',
+      '관리자(대표님)도 업무입력/나의현황 사용 가능',
+      '권한 있는 멤버 — 허가된 메뉴 + 내 업무 섹션',
+      '권한 없는 멤버 — 내 업무만 표시',
+      '읽기 권한 — 수정/삭제 버튼 "읽기전용" 배지로 대체',
+    ]
+  },
+  {
+    version: 'v1.3.1',
+    date: '2026-05-14',
+    type: 'patch',
+    label: '패치',
+    items: [
+      '회원 관리를 "개발자/회원 관리"로 통합',
+      '상태 탭: 전체 / 승인 대기 / 승인 완료 / 거절',
+      '카드 클릭 → 상태별 버튼 (승인/거절/권한설정/비번초기화)',
+      'Firestore 인덱스 오류 수정 (orderBy 제거, 클라이언트 정렬)',
+    ]
+  },
   {
     version: 'v1.3.0',
     date: '2026-05-14',
@@ -1489,9 +1647,7 @@ const CHANGELOG = [
       '회원 직접 가입 기능 추가 (이름/이메일/비번/담당업무)',
       '담당업무: PM, 기획자, 디자이너, 퍼블리셔, 개발자, QA, 경영지원',
       '가입 후 관리자 승인 대기 → 승인 후 서비스 이용',
-      '관리자 "회원 관리" 메뉴 — 승인/거절/권한 설정',
       '메뉴별 권한: 없음 / 읽기 / 읽기+쓰기',
-      '업무 입력/나의 현황 — 승인된 모든 멤버 기본 제공',
     ]
   },
   {
@@ -1500,8 +1656,7 @@ const CHANGELOG = [
     type: 'patch',
     label: '패치',
     items: [
-      '"아이디 저장" 체크박스 — 선택 시 이메일 자동 저장/채움',
-      '"로그인 유지" 체크박스 — 선택 시 브라우저 닫아도 로그인 유지',
+      '"아이디 저장" / "로그인 유지" 체크박스 추가',
       '체크박스 선택값 저장 — 다음 방문 시 설정 유지',
     ]
   },
@@ -1510,69 +1665,51 @@ const CHANGELOG = [
     date: '2026-05-14',
     type: 'patch',
     label: '패치',
-    items: [
-      '마지막 로그인 이메일 자동 저장 및 채움 (v1.2.5에서 선택형으로 개선)',
-    ]
+    items: ['로그인 이메일 자동 저장 (v1.2.5에서 선택형으로 개선)']
   },
   {
     version: 'v1.2.3',
     date: '2026-05-14',
     type: 'patch',
     label: '패치',
-    items: [
-      '로그인 화면 "비밀번호를 잊으셨나요?" 기능 추가',
-      '개발자 카드 클릭 버그 수정',
-    ]
+    items: ['"비밀번호를 잊으셨나요?" 추가, 개발자 카드 클릭 버그 수정']
   },
   {
     version: 'v1.2.2',
     date: '2026-05-14',
     type: 'patch',
     label: '패치',
-    items: [
-      '개발자 카드 클릭 → 상세 정보 모달',
-      '비밀번호 재설정 이메일 발송 기능',
-    ]
+    items: ['개발자 상세 모달, 비밀번호 재설정 이메일 발송']
   },
   {
     version: 'v1.2.1',
     date: '2026-05-14',
     type: 'patch',
     label: '패치',
-    items: [
-      '업무 입력 시간/분 직접 입력 — 시간 ↔ % 양방향 자동계산',
-    ]
+    items: ['시간/분 직접 입력 — 시간 ↔ % 양방향 자동계산']
   },
   {
     version: 'v1.2.0',
     date: '2026-05-14',
     type: 'minor',
     label: '기능 개선',
-    items: [
-      '즐겨찾기, 프로젝트 정렬, 기타 메모, 자동완성, 대기상태, M/M 21일',
-    ]
+    items: ['즐겨찾기, 정렬, 기타메모, 자동완성, 대기상태, M/M 21일']
   },
   {
     version: 'v1.1.0',
     date: '2026-05-14',
     type: 'minor',
     label: '기능 개선',
-    items: [
-      '전체 프로젝트 표시, M/M 관리, 생산성 분석, 업무이력',
-    ]
+    items: ['전체 프로젝트 표시, M/M 관리, 생산성 분석, 업무이력']
   },
   {
     version: 'v1.0.0',
     date: '2026-05-14',
     type: 'major',
     label: '최초 배포',
-    items: [
-      '기업/프로젝트/개발자 관리, 업무입력, 야근, 대시보드, Firebase 연동',
-    ]
+    items: ['기업/프로젝트/개발자 관리, 업무입력, 야근, 대시보드, Firebase 연동']
   }
 ];
-
-// ============================================================
 // Firebase 설정 (kaon-pems 프로젝트)
 // ============================================================
 const firebaseConfig = {
@@ -1978,6 +2115,9 @@ function buildSidebar(isAdminUser, permissions) {
     </button>
     <button class="nav-item" id="nav-my-history" onclick="adminGo('my-history')">
       <span class="nav-icon">📅</span> 나의 현황
+    </button>
+    <button class="nav-item" id="nav-weekly" onclick="adminGo('weekly')">
+      <span class="nav-icon">📋</span> 위클리 보고
     </button>`;
 
   // ③ 시스템
@@ -2057,6 +2197,7 @@ function adminGo(view) {
   if (view==='members')      loadMembers();
   if (view==='daily-input')  loadDailyInput();
   if (view==='my-history')   loadHistory();
+  if (view==='weekly')       loadWeeklyView();
 }
 
 // ── 기업 관리 ──────────────────────────────────────────────
@@ -3749,7 +3890,472 @@ async function saveProfile() {
   showLoad(false);
 }
 
-// ── 업데이트 이력 ─────────────────────────────────────────
+// ── 위클리 보고 ─────────────────────────────────────────
+let _wkViewDate   = null;
+let _wkTab        = 'plan';
+let _wkPlanItems  = [];
+let _wkResultItems = [];
+let _wkExtraItems  = [];
+
+// 주 유틸리티
+function getWeekStart(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00');
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  return d.toISOString().split('T')[0];
+}
+function getWeekEnd(ws) {
+  const d = new Date(ws + 'T12:00:00');
+  d.setDate(d.getDate() + 4);
+  return d.toISOString().split('T')[0];
+}
+function getPrevWS(ws) {
+  const d = new Date(ws + 'T12:00:00');
+  d.setDate(d.getDate() - 7);
+  return d.toISOString().split('T')[0];
+}
+function getNextWS(ws) {
+  const d = new Date(ws + 'T12:00:00');
+  d.setDate(d.getDate() + 7);
+  return d.toISOString().split('T')[0];
+}
+function weekLabel(ws) {
+  const s = new Date(ws + 'T12:00:00');
+  const e = new Date(ws + 'T12:00:00');
+  e.setDate(e.getDate() + 4);
+  const fmt = d => `${d.getMonth()+1}/${d.getDate()}`;
+  return `${s.getFullYear()}년 ${fmt(s)}(월) ~ ${fmt(e)}(금)`;
+}
+function wkId() { return Date.now().toString(36)+Math.random().toString(36).substr(2,4); }
+function newPlanItem(from=null) {
+  return {
+    id: wkId(),
+    projectId: from?.projectId||'',
+    projectName: from?.projectName||'',
+    task: from?.task||'',
+    priority: from?.priority||'medium',
+    repeatCount: from ? (from.repeatCount||0)+1 : 0,
+  };
+}
+
+// ── 메인 진입 ────────────────────────────────────────────
+async function loadWeeklyView() {
+  if (!_wkViewDate) _wkViewDate = getWeekStart(today());
+  await renderWeeklyContent();
+}
+
+async function renderWeeklyContent() {
+  const ws = _wkViewDate;
+  const cont = $('weekly-content');
+  if (!cont) return;
+
+  const todayWs = getWeekStart(today());
+  const isThis = ws === todayWs;
+
+  const tabs = isAdmin ? ['plan','result','team'] : ['plan','result'];
+  const tabLbls = {plan:'📋 업무 계획', result:'📊 업무 결과', team:'👥 팀 현황'};
+
+  const navBar = `<div class="week-nav">
+    <button class="btn btn-secondary btn-xs" onclick="wkPrev()">← 이전주</button>
+    <span class="week-label">${weekLabel(ws)}${isThis?'&nbsp;<span class="badge badge-info" style="font-size:11px">이번주</span>':''}</span>
+    <button class="btn btn-secondary btn-xs" onclick="wkNext()">다음주 →</button>
+  </div>`;
+
+  const tabBar = `<div class="week-tabs">
+    ${tabs.map(t=>`<button class="week-tab${_wkTab===t?' active':''}" onclick="switchWkTab('${t}')">${tabLbls[t]}</button>`).join('')}
+  </div>`;
+
+  cont.innerHTML = navBar + tabBar + '<div id="wk-tc" style="min-height:200px"><div class="text-muted" style="padding:32px;text-align:center">로딩 중...</div></div>';
+  $('weekly-subtitle').textContent = weekLabel(ws);
+
+  if (_wkTab==='team' && isAdmin) await renderWkTeam(ws);
+  else if (_wkTab==='plan') await renderWkPlan(ws);
+  else await renderWkResult(ws);
+}
+
+function switchWkTab(t) { _wkTab=t; renderWeeklyContent(); }
+function wkPrev() { _wkViewDate=getPrevWS(_wkViewDate); renderWeeklyContent(); }
+function wkNext() { _wkViewDate=getNextWS(_wkViewDate); renderWeeklyContent(); }
+
+// ── 계획 탭 ──────────────────────────────────────────────
+async function renderWkPlan(ws) {
+  const uid = currentUser.uid;
+  const doc = await db.collection('weeklyPlans').doc(`${uid}_${ws}`).get();
+  const saved = doc.exists ? doc.data() : null;
+  _wkPlanItems = saved?.items ? saved.items.map(i=>({...i})) : [newPlanItem()];
+  renderWkPlanUI(saved?.status);
+}
+
+function renderWkPlanUI(savedStatus) {
+  const tc = $('wk-tc'); if(!tc) return;
+  const isDraft = savedStatus==='draft';
+  const isSubmitted = savedStatus==='submitted';
+  const statusBadge = isSubmitted ? '<span class="badge badge-success">✅ 제출완료</span>' :
+                      isDraft ? '<span class="badge badge-warning">임시저장</span>' : '';
+
+  tc.innerHTML = `<div class="card">
+    <div class="card-header">
+      <div class="card-title">📋 업무 계획</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        ${statusBadge}
+        <button class="btn btn-secondary btn-xs" onclick="wkLoadPrev()">⏮ 지난주 불러오기</button>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="weekly-col-hdr">
+        <span style="width:90px">우선순위</span>
+        <span style="width:130px">프로젝트</span>
+        <span style="flex:1">업무 내용</span>
+      </div>
+      <div id="wk-plan-rows">${_wkPlanItems.map(wkPlanRowHTML).join('')}</div>
+      <button class="btn btn-secondary btn-xs mt-12" onclick="addWkPlan()">+ 항목 추가</button>
+    </div>
+    <div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px">
+      <button class="btn btn-secondary" onclick="saveWkPlan('draft')">임시저장</button>
+      <button class="btn btn-primary" onclick="saveWkPlan('submitted')">제출</button>
+    </div>
+  </div>`;
+}
+
+function wkPlanRowHTML(item) {
+  // 즐겨찾기 정렬 + ⭐ 표시 (업무입력과 동일)
+  const projs    = sortProjects(isAdmin ? allProjects : myProjects);
+  const favs     = new Set(getFavs());
+  const projOpts = projs.map(p =>
+    `<option value="${p.id}" ${item.projectId===p.id?'selected':''}>${favs.has(p.id)?'⭐ ':''}${escHtml(p.name)}</option>`
+  ).join('');
+  const repeatBadge = item.repeatCount >= 2
+    ? `<span class="repeat-badge">🔄 ${item.repeatCount}주 반복</span>`
+    : item.repeatCount === 1 ? `<span class="carry-badge">↩ 이월</span>` : '';
+  return `<div class="weekly-row" id="wpr-${item.id}">
+    <select class="wpriority" onchange="updWkPlan('${item.id}','priority',this.value)">
+      <option value="high" ${item.priority==='high'?'selected':''}>🔴 높음</option>
+      <option value="medium" ${item.priority==='medium'?'selected':''}>🟡 중간</option>
+      <option value="low" ${item.priority==='low'?'selected':''}>🟢 낮음</option>
+    </select>
+    <select class="wproject" onchange="updWkPlan('${item.id}','projectId',this.value)">
+      <option value="">프로젝트 선택</option>
+      ${projOpts}
+      <option value="internal" ${item.projectId==='internal'?'selected':''}>🏢 사내 업무</option>
+    </select>
+    <input class="wtask" type="text" value="${escHtml(item.task||'')}" placeholder="업무 내용 입력"
+      oninput="updWkPlan('${item.id}','task',this.value)">
+    ${repeatBadge}
+    <button class="wdel-btn" onclick="delWkPlan('${item.id}')">✕</button>
+  </div>`;
+}
+
+function escHtml(s) { return (s||'').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function updWkPlan(id, field, value) {
+  const item = _wkPlanItems.find(i=>i.id===id);
+  if (!item) return;
+  item[field] = value;
+  if (field==='projectId') {
+    const p = (isAdmin?allProjects:myProjects).find(p=>p.id===value);
+    item.projectName = p ? p.name : (value==='internal'?'사내 업무':'');
+  }
+}
+function addWkPlan() {
+  _wkPlanItems.push(newPlanItem());
+  const r=$('wk-plan-rows'); if(r) r.innerHTML=_wkPlanItems.map(wkPlanRowHTML).join('');
+}
+function delWkPlan(id) {
+  _wkPlanItems = _wkPlanItems.filter(i=>i.id!==id);
+  if(!_wkPlanItems.length) _wkPlanItems=[newPlanItem()];
+  const r=$('wk-plan-rows'); if(r) r.innerHTML=_wkPlanItems.map(wkPlanRowHTML).join('');
+}
+
+async function wkLoadPrev() {
+  const prevWs = getPrevWS(_wkViewDate);
+  showLoad(true);
+  try {
+    const doc = await db.collection('weeklyPlans').doc(`${currentUser.uid}_${prevWs}`).get();
+    if (!doc.exists || !doc.data().items?.length) {
+      toast('지난주 계획이 없습니다.','error'); showLoad(false); return;
+    }
+    const newItems = doc.data().items.map(i=>newPlanItem(i));
+    // 빈 항목 제거 후 추가
+    _wkPlanItems = [..._wkPlanItems.filter(i=>i.task?.trim()), ...newItems];
+    if (!_wkPlanItems.length) _wkPlanItems=[newPlanItem()];
+    const r=$('wk-plan-rows'); if(r) r.innerHTML=_wkPlanItems.map(wkPlanRowHTML).join('');
+    toast(`지난주 계획 ${newItems.length}건을 불러왔습니다.`);
+  } catch(e) { toast('불러오기 실패: '+e.message,'error'); }
+  showLoad(false);
+}
+
+async function saveWkPlan(status) {
+  const items = _wkPlanItems.filter(i=>i.task?.trim());
+  if (!items.length && status==='submitted') {
+    toast('업무 계획을 하나 이상 입력하세요.','error'); return;
+  }
+  const uid=currentUser.uid, ws=_wkViewDate;
+  showLoad(true);
+  try {
+    await db.collection('weeklyPlans').doc(`${uid}_${ws}`).set({
+      uid, weekStart:ws, weekEnd:getWeekEnd(ws), status, items,
+      updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
+    },{merge:true});
+    toast(status==='submitted'?'계획이 제출되었습니다! ✅':'임시저장되었습니다.');
+    renderWkPlan(ws).then(()=>renderWkPlanUI(status));
+  } catch(e) { toast('저장 실패: '+e.message,'error'); }
+  showLoad(false);
+}
+
+// ── 결과 탭 ──────────────────────────────────────────────
+async function renderWkResult(ws) {
+  const uid=currentUser.uid;
+  showLoad(true);
+  const [planDoc, repDoc] = await Promise.all([
+    db.collection('weeklyPlans').doc(`${uid}_${ws}`).get(),
+    db.collection('weeklyReports').doc(`${uid}_${ws}`).get(),
+  ]);
+  const plan=planDoc.exists?planDoc.data():null;
+  const rep=repDoc.exists?repDoc.data():null;
+
+  if (!plan?.items?.length) {
+    $('wk-tc').innerHTML=`<div class="info-notice" style="text-align:center;padding:40px">
+      <div style="font-size:36px;margin-bottom:12px">📋</div>
+      <div style="font-weight:600;font-size:15px">이번주 계획이 없습니다.</div>
+      <div class="text-muted mt-8">먼저 업무 계획 탭에서 계획을 작성해주세요.</div>
+      <button class="btn btn-primary mt-16" onclick="switchWkTab('plan')">계획 작성하기</button>
+    </div>`;
+    showLoad(false); return;
+  }
+
+  _wkResultItems = plan.items.map(pi => {
+    const saved=(rep?.results||[]).find(r=>r.planItemId===pi.id);
+    return { id:wkId(), planItemId:pi.id, projectId:pi.projectId, projectName:pi.projectName,
+      task:pi.task, priority:pi.priority, repeatCount:pi.repeatCount||0,
+      status:saved?.status||'', memo:saved?.memo||'' };
+  });
+  _wkExtraItems=(rep?.extras||[]).map(e=>({...e,id:e.id||wkId()}));
+  renderWkResultUI(rep?.status);
+  showLoad(false);
+}
+
+function renderWkResultUI(savedStatus) {
+  const tc=$('wk-tc'); if(!tc) return;
+  const isSubmitted=savedStatus==='submitted', isDraft=savedStatus==='draft';
+  const statusBadge = isSubmitted?'<span class="badge badge-success">✅ 제출완료</span>':
+                      isDraft?'<span class="badge badge-warning">임시저장</span>':'';
+  const planRows = _wkResultItems.map(wkResultRowHTML).join('');
+  const extraRows = _wkExtraItems.map(wkExtraRowHTML).join('');
+
+  tc.innerHTML=`<div class="card">
+    <div class="card-header">
+      <div class="card-title">📊 업무 결과</div>
+      ${statusBadge}
+    </div>
+    <div class="card-body">
+      <div class="weekly-section-title">계획 업무 결과</div>
+      <div id="wk-result-rows">${planRows}</div>
+      <div class="weekly-section-title" style="margin-top:20px">
+        추가 업무 <span class="text-muted" style="font-size:11px;font-weight:400">(계획 외 발생)</span>
+      </div>
+      <div id="wk-extra-rows">${extraRows}</div>
+      <button class="btn btn-secondary btn-xs mt-10" onclick="addWkExtra()">+ 추가 업무 입력</button>
+    </div>
+    <div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px">
+      <button class="btn btn-secondary" onclick="saveWkReport('draft')">임시저장</button>
+      <button class="btn btn-primary" onclick="saveWkReport('submitted')">제출</button>
+    </div>
+  </div>`;
+}
+
+function wkResultRowHTML(item) {
+  const plCls={high:'pl-high',medium:'pl-medium',low:'pl-low'}[item.priority]||'pl-medium';
+  const plLbl={high:'🔴 높음',medium:'🟡 중간',low:'🟢 낮음'}[item.priority]||'중간';
+  const rb = item.repeatCount>=2?`<span class="repeat-badge">🔄 ${item.repeatCount}주 반복</span>`:
+             item.repeatCount===1?`<span class="carry-badge">↩ 이월</span>`:'';
+  return `<div class="wrr">
+    <div class="wrr-top">
+      <span class="priority-label ${plCls}" style="flex-shrink:0">${plLbl}</span>
+      <span class="wrr-proj">${escHtml(item.projectName||'-')}</span>
+      <span class="wrr-task">${escHtml(item.task||'-')} ${rb}</span>
+    </div>
+    <div class="wrr-bot">
+      <select class="wstatus" style="flex-shrink:0" onchange="updWkResult('${item.id}','status',this.value)">
+        <option value="" ${!item.status?'selected':''}>결과 선택</option>
+        <option value="done" ${item.status==='done'?'selected':''}>✅ 완료</option>
+        <option value="in_progress" ${item.status==='in_progress'?'selected':''}>⚠️ 진행중</option>
+        <option value="not_done" ${item.status==='not_done'?'selected':''}>❌ 미완료</option>
+      </select>
+      <textarea class="wmemo-area" placeholder="이슈 / 보고사항을 자유롭게 입력하세요 (선택)"
+        oninput="updWkResult('${item.id}','memo',this.value)">${escHtml(item.memo||'')}</textarea>
+    </div>
+  </div>`;
+}
+
+function wkExtraRowHTML(item) {
+  const projs    = sortProjects(isAdmin ? allProjects : myProjects);
+  const favs     = new Set(getFavs());
+  const projOpts = projs.map(p =>
+    `<option value="${p.id}" ${item.projectId===p.id?'selected':''}>${favs.has(p.id)?'⭐ ':''}${escHtml(p.name)}</option>`
+  ).join('');
+  return `<div class="weekly-row" id="wer-${item.id}">
+    <select class="wproject" onchange="updWkExtra('${item.id}','projectId',this.value)">
+      <option value="">프로젝트</option>
+      ${projOpts}
+      <option value="internal" ${item.projectId==='internal'?'selected':''}>🏢 사내 업무</option>
+    </select>
+    <input class="wtask" type="text" value="${escHtml(item.task||'')}" placeholder="추가 업무 내용"
+      oninput="updWkExtra('${item.id}','task',this.value)">
+    <select class="wstatus" onchange="updWkExtra('${item.id}','status',this.value)">
+      <option value="" ${!item.status?'selected':''}>결과</option>
+      <option value="done" ${item.status==='done'?'selected':''}>✅ 완료</option>
+      <option value="in_progress" ${item.status==='in_progress'?'selected':''}>⚠️ 진행중</option>
+      <option value="not_done" ${item.status==='not_done'?'selected':''}>❌ 미완료</option>
+    </select>
+    <input class="wmemo" type="text" value="${escHtml(item.memo||'')}" placeholder="메모"
+      oninput="updWkExtra('${item.id}','memo',this.value)">
+    <button class="wdel-btn" onclick="delWkExtra('${item.id}')">✕</button>
+  </div>`;
+}
+
+function updWkResult(id,f,v){ const i=_wkResultItems.find(x=>x.id===id); if(i) i[f]=v; }
+function updWkExtra(id,f,v){
+  const i=_wkExtraItems.find(x=>x.id===id); if(!i) return; i[f]=v;
+  if(f==='projectId'){ const p=(isAdmin?allProjects:myProjects).find(p=>p.id===v); i.projectName=p?p.name:(v==='internal'?'사내 업무':''); }
+}
+function addWkExtra(){
+  _wkExtraItems.push({id:wkId(),projectId:'',projectName:'',task:'',status:'',memo:''});
+  const r=$('wk-extra-rows'); if(r) r.innerHTML=_wkExtraItems.map(wkExtraRowHTML).join('');
+}
+function delWkExtra(id){
+  _wkExtraItems=_wkExtraItems.filter(i=>i.id!==id);
+  const r=$('wk-extra-rows'); if(r) r.innerHTML=_wkExtraItems.map(wkExtraRowHTML).join('');
+}
+
+async function saveWkReport(status) {
+  if (status==='submitted') {
+    const noStatus=_wkResultItems.filter(i=>!i.status);
+    if(noStatus.length){ toast(`${noStatus.length}건의 결과를 선택해주세요.`,'error'); return; }
+  }
+  const results=_wkResultItems.map(({id,planItemId,task,status:s,memo,repeatCount})=>({planItemId,task,status:s,memo,repeatCount}));
+  const extras=_wkExtraItems.filter(i=>i.task?.trim()).map(({id,...rest})=>rest);
+  const uid=currentUser.uid, ws=_wkViewDate;
+  showLoad(true);
+  try {
+    await db.collection('weeklyReports').doc(`${uid}_${ws}`).set({
+      uid, weekStart:ws, weekEnd:getWeekEnd(ws), status, results, extras,
+      updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
+    },{merge:true});
+    toast(status==='submitted'?'결과가 제출되었습니다! ✅':'임시저장되었습니다.');
+    renderWkResult(ws).then(()=>renderWkResultUI(status));
+  } catch(e){ toast('저장 실패: '+e.message,'error'); }
+  showLoad(false);
+}
+
+// ── 팀 현황 탭 (관리자) ──────────────────────────────────
+async function renderWkTeam(ws) {
+  const tc=$('wk-tc'); if(!tc) return;
+  showLoad(true);
+  try {
+    const [plans,reps] = await Promise.all([
+      db.collection('weeklyPlans').where('weekStart','==',ws).get(),
+      db.collection('weeklyReports').where('weekStart','==',ws).get(),
+    ]);
+    const pm={}, rm={};
+    plans.docs.forEach(d=>pm[d.data().uid]=d.data());
+    reps.docs.forEach(d=>rm[d.data().uid]=d.data());
+
+    const hdr=`<div style="display:flex;align-items:center;padding:8px 16px;border-bottom:1px solid var(--border);background:#F8FAFC">
+      <span style="width:50px"></span>
+      <span style="flex:1;font-size:10px;font-weight:700;color:var(--text-3)">구성원</span>
+      <span style="width:90px;text-align:center;font-size:10px;font-weight:700;color:var(--text-3)">계획</span>
+      <span style="width:90px;text-align:center;font-size:10px;font-weight:700;color:var(--text-3)">결과</span>
+      <span style="width:110px;text-align:center;font-size:10px;font-weight:700;color:var(--text-3)">반복 업무</span>
+      <span style="width:20px"></span>
+    </div>`;
+
+    const rows=allDevs.map(dev=>{
+      const plan=pm[dev.id], rep=rm[dev.id];
+      const pSt=plan?.status, rSt=rep?.status;
+      const pB=pSt==='submitted'?'<span class="badge badge-success">✅ 제출</span>':
+                pSt==='draft'?'<span class="badge badge-warning">임시저장</span>':
+                '<span class="badge badge-gray">미제출</span>';
+      const rB=rSt==='submitted'?'<span class="badge badge-success">✅ 제출</span>':
+                rSt==='draft'?'<span class="badge badge-warning">임시저장</span>':
+                '<span class="badge badge-gray">미제출</span>';
+      const repeatCnt=(plan?.items||[]).filter(i=>(i.repeatCount||0)>=2).length;
+      const rb=repeatCnt>0?`<span class="repeat-badge">🔄 ${repeatCnt}건</span>`:`<span class="text-muted">-</span>`;
+      return `<div class="weekly-admin-row" onclick="viewMemberWk('${dev.id}','${escHtml(dev.name)}','${ws}')">
+        <div class="member-avatar av-approved" style="width:34px;height:34px;font-size:13px;flex-shrink:0">${dev.name.charAt(0)}</div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700">${escHtml(dev.name)}</div>
+          <div style="font-size:11px;color:var(--text-3)">${escHtml(dev.email)}</div>
+        </div>
+        <div style="width:90px;text-align:center">${pB}</div>
+        <div style="width:90px;text-align:center">${rB}</div>
+        <div style="width:110px;text-align:center">${rb}</div>
+        <span style="color:var(--text-3);font-size:14px">›</span>
+      </div>`;
+    }).join('')||'<div class="text-muted" style="padding:24px;text-align:center">구성원이 없습니다.</div>';
+
+    tc.innerHTML=`<div class="card"><div class="card-body" style="padding:0">${hdr}${rows}</div></div>`;
+  } catch(e){ tc.innerHTML=`<div class="error-msg" style="margin:16px">조회 실패: ${e.message}</div>`; }
+  showLoad(false);
+}
+
+async function viewMemberWk(uid, name, ws) {
+  showLoad(true);
+  const [planDoc,repDoc]=await Promise.all([
+    db.collection('weeklyPlans').doc(`${uid}_${ws}`).get(),
+    db.collection('weeklyReports').doc(`${uid}_${ws}`).get(),
+  ]);
+  const plan=planDoc.exists?planDoc.data():null;
+  const rep=repDoc.exists?repDoc.data():null;
+  const items=plan?.items||[];
+  const results=rep?.results||[];
+  const extras=rep?.extras||[];
+  const stLbl={done:'✅ 완료',in_progress:'⚠️ 진행중',not_done:'❌ 미완료'};
+
+  const planTbody=items.map(pi=>{
+    const res=results.find(r=>r.planItemId===pi.id);
+    const plCls={high:'pl-high',medium:'pl-medium',low:'pl-low'}[pi.priority]||'pl-medium';
+    const rb=(pi.repeatCount||0)>=2?`<span class="repeat-badge">🔄 ${pi.repeatCount}주 반복</span>`:
+             (pi.repeatCount||0)===1?`<span class="carry-badge">↩ 이월</span>`:'';
+    return `<tr style="border-bottom:1px solid #F8FAFC">
+      <td style="padding:8px 6px"><span class="priority-label ${plCls}" style="width:auto;padding:2px 6px">${{high:'🔴 높음',medium:'🟡 중간',low:'🟢 낮음'}[pi.priority]||'-'}</span></td>
+      <td style="padding:8px 6px;font-size:12px;color:var(--text-2)">${escHtml(pi.projectName||'-')}</td>
+      <td style="padding:8px 6px;font-size:13px">${escHtml(pi.task)}${rb}</td>
+      <td style="padding:8px 6px">${res?stLbl[res.status]||'미입력':'<span class="text-muted">미입력</span>'}</td>
+      <td style="padding:8px 6px;font-size:12px;color:var(--text-3)">${escHtml(res?.memo||'-')}</td>
+    </tr>`;
+  }).join('')||'<tr><td colspan="5" class="text-muted" style="padding:12px">계획 없음</td></tr>';
+
+  const extraTbody=extras.map(e=>`<tr style="border-bottom:1px solid #F8FAFC">
+    <td style="padding:8px 6px"></td>
+    <td style="padding:8px 6px;font-size:12px;color:var(--text-2)">${escHtml(e.projectName||'-')}</td>
+    <td style="padding:8px 6px;font-size:13px">${escHtml(e.task||'-')}</td>
+    <td style="padding:8px 6px">${stLbl[e.status]||'-'}</td>
+    <td style="padding:8px 6px;font-size:12px;color:var(--text-3)">${escHtml(e.memo||'-')}</td>
+  </tr>`).join('');
+
+  const thStyle='padding:6px;font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;text-align:left;border-bottom:1px solid var(--border)';
+  $('wk-modal-title').textContent=`${name} — ${weekLabel(ws)}`;
+  $('wk-modal-body').innerHTML=`
+    <div class="weekly-section-title">계획 업무</div>
+    <table style="width:100%;border-collapse:collapse">
+      <thead><tr>
+        <th style="${thStyle}">우선순위</th><th style="${thStyle}">프로젝트</th>
+        <th style="${thStyle}">업무 내용</th><th style="${thStyle}">결과</th><th style="${thStyle}">메모</th>
+      </tr></thead>
+      <tbody>${planTbody}</tbody>
+    </table>
+    ${extras.length?`<div class="weekly-section-title" style="margin-top:16px">추가 업무</div>
+    <table style="width:100%;border-collapse:collapse">
+      <thead><tr>
+        <th style="${thStyle}"></th><th style="${thStyle}">프로젝트</th>
+        <th style="${thStyle}">업무 내용</th><th style="${thStyle}">결과</th><th style="${thStyle}">메모</th>
+      </tr></thead>
+      <tbody>${extraTbody}</tbody>
+    </table>`:''}`;
+  show('modal-wk-member');
+  showLoad(false);
+}
 function renderChangelog(containerId) {
   const el = $(containerId);
   if (!el) return;
