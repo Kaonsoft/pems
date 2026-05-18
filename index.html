@@ -623,6 +623,29 @@ select.form-control { cursor: pointer; }
 .entry-col-hdr { display:flex;align-items:center;gap:10px;padding:0 0 7px;border-bottom:1px solid #F1F5F9;margin-bottom:4px; }
 .entry-col-hdr .ch { font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em; }
 
+/* === C안 입력 행 === */
+.erow { padding:12px 4px;border-bottom:1px solid #F8FAFC; }
+.erow:last-child { border-bottom:none; }
+.erow-top { display:flex;align-items:center;gap:8px;margin-bottom:8px; }
+.erow-name { font-size:13px;font-weight:600;flex:1; }
+.erow-bot { display:flex;align-items:center;gap:8px;padding-left:28px;flex-wrap:wrap; }
+.quick-btns { display:flex;gap:4px;flex-wrap:wrap; }
+.qbtn { padding:3px 9px;border-radius:6px;font-size:11px;font-weight:700;border:1.5px solid var(--border);background:white;color:var(--text-2);cursor:pointer;transition:all .12s; }
+.qbtn:hover { border-color:var(--primary-light);color:var(--primary-light); }
+.qbtn.qactive { background:var(--primary-light);color:white;border-color:var(--primary-light); }
+.pct-wrap { display:flex;align-items:center;gap:4px; }
+.pct-inp-c { width:52px;padding:6px 6px;border:1.5px solid var(--border);border-radius:7px;text-align:center;font-size:14px;font-weight:700;transition:border-color .12s; }
+.pct-inp-c:focus { outline:none;border-color:var(--primary-light); }
+.pct-inp-c::-webkit-inner-spin-button,.pct-inp-c::-webkit-outer-spin-button { -webkit-appearance:none;margin:0; }
+.pct-inp-c { -moz-appearance:textfield; }
+.pct-sym { font-size:14px;font-weight:700;color:var(--text-2); }
+.time-calc-c { font-size:13px;font-weight:600;color:var(--primary-light);min-width:60px; }
+.fill-rem-btn { padding:3px 10px;border-radius:6px;font-size:11px;font-weight:600;border:1.5px dashed var(--border);background:white;color:var(--text-3);cursor:pointer;margin-left:auto; }
+.fill-rem-btn:hover { border-color:var(--success);color:var(--success); }
+.adj-wrap { display:flex;align-items:center;justify-content:space-between; }
+.adj-btn { padding:5px 14px;border-radius:7px;font-size:12px;font-weight:600;border:1.5px solid var(--warning);background:var(--warning-bg);color:var(--warning);cursor:pointer; }
+.adj-btn:hover { background:var(--warning);color:white; }
+
 /* === LOGIN OPTIONS === */
 .login-options { display:flex; gap:20px; margin:14px 0 4px; }
 .login-chk { display:flex;align-items:center;gap:7px;font-size:13px;color:var(--text-2);cursor:pointer;user-select:none; }
@@ -2824,17 +2847,25 @@ function renderDailyUI(existing=null, mmHTML='') {
     const pct = ex?.percent||'';
     const fav = isFav(p.id);
     const {h, m} = pctToHM(pct);
-    return `<div class="entry-row${fav?' fav-hl':''}">
-      <button class="fav-btn${fav?' on':''}" onclick="toggleFav('${p.id}')" title="즐겨찾기">⭐</button>
-      <div class="entry-name">${p.name}</div>
-      <div class="time-grp">
-        <input class="time-inp time-h-inp" type="number" data-pid="${p.id}" value="${h}" min="0" max="23" placeholder="0" oninput="syncTimeToPct('${p.id}')">
-        <span class="time-sep">h</span>
-        <input class="time-inp time-m-inp" type="number" data-pid="${p.id}" value="${m}" min="0" max="59" step="5" placeholder="0" oninput="syncTimeToPct('${p.id}')">
-        <span class="time-sep">m</span>
+    const QUICK_PCTS = [10, 20, 25, 50, 100];
+    return `<div class="erow${fav?' fav-hl':''}">
+      <div class="erow-top">
+        <button class="fav-btn${fav?' on':''}" onclick="toggleFav('${p.id}')" title="즐겨찾기">⭐</button>
+        <span class="erow-name">${p.name}</span>
       </div>
-      <span class="bidir">↔</span>
-      <input type="number" class="entry-input daily-pct" data-pid="${p.id}" value="${pct}" min="0" max="100" placeholder="%" oninput="syncPctToTime('${p.id}');autoFillLast('daily-pct');calcDailyTotal()">
+      <div class="erow-bot">
+        <div class="quick-btns">
+          ${QUICK_PCTS.map(v=>`<button class="qbtn${pct==v?' qactive':''}" onclick="setPct('${p.id}',${v})">${v}%</button>`).join('')}
+        </div>
+        <div class="pct-wrap">
+          <input type="number" class="pct-inp-c daily-pct" data-pid="${p.id}" value="${pct}"
+            min="0" max="100" placeholder="0"
+            oninput="calcPctTotal()" onblur="calcPctTotal()">
+          <span class="pct-sym">%</span>
+        </div>
+        <div class="time-calc-c" id="time-calc-${p.id}">${pct?pctToTimeStr(pct):'-'}</div>
+        <button class="fill-rem-btn" onclick="fillRemainder('${p.id}')">나머지 채우기</button>
+      </div>
     </div>`;
   }).join('');
 
@@ -2843,20 +2874,28 @@ function renderDailyUI(existing=null, mmHTML='') {
   const etcPct   = etcEntry?.percent||'';
   const etcMemo  = etcEntry?.memo||'';
   const {h:etcH, m:etcM} = pctToHM(etcPct);
-  const etcRow = `<div class="entry-row">
-    <button class="fav-btn" style="opacity:0;cursor:default">⭐</button>
-    <div class="entry-name">🗂 기타 (서류/관리업무)</div>
-    <div class="time-grp">
-      <input class="time-inp time-h-inp" type="number" data-pid="etc" value="${etcH}" min="0" max="23" placeholder="0" oninput="syncTimeToPct('etc')">
-      <span class="time-sep">h</span>
-      <input class="time-inp time-m-inp" type="number" data-pid="etc" value="${etcM}" min="0" max="59" step="5" placeholder="0" oninput="syncTimeToPct('etc')">
-      <span class="time-sep">m</span>
+  const QPCTS = [10,20,25,50,100];
+  const etcRow = `<div class="erow">
+    <div class="erow-top">
+      <button class="fav-btn" style="opacity:0;cursor:default">⭐</button>
+      <span class="erow-name">🗂 기타 (서류/관리업무)</span>
     </div>
-    <span class="bidir">↔</span>
-    <input type="number" class="entry-input daily-pct" data-pid="etc" value="${etcPct}" min="0" max="100" placeholder="%" oninput="syncPctToTime('etc');autoFillLast('daily-pct');calcDailyTotal();toggleEtcMemo()">
+    <div class="erow-bot">
+      <div class="quick-btns">
+        ${QPCTS.map(v=>`<button class="qbtn${etcPct==v?' qactive':''}" onclick="setPct('etc',${v})">${v}%</button>`).join('')}
+      </div>
+      <div class="pct-wrap">
+        <input type="number" class="pct-inp-c daily-pct" data-pid="etc" value="${etcPct}"
+          min="0" max="100" placeholder="0"
+          oninput="calcPctTotal();toggleEtcMemo()" onblur="calcPctTotal()">
+        <span class="pct-sym">%</span>
+      </div>
+      <div class="time-calc-c" id="time-calc-etc">${etcPct?pctToTimeStr(etcPct):'-'}</div>
+      <button class="fill-rem-btn" onclick="fillRemainder('etc')">나머지 채우기</button>
+    </div>
   </div>
   <div id="etc-memo-wrap" class="memo-wrap${etcPct?'':' hidden'}">
-    <textarea class="memo-inp" id="etc-memo" placeholder="기타 업무 내용을 간략히 입력하세요 (예: 제안서 작성, 주간보고)">${etcMemo}</textarea>
+    <textarea class="memo-inp" id="etc-memo" placeholder="기타 업무 내용을 간략히 입력하세요">${etcMemo}</textarea>
   </div>`;
 
   // 야근 행
@@ -2870,13 +2909,19 @@ function renderDailyUI(existing=null, mmHTML='') {
   .map(r=>`<div class="entry-row">
     <div class="entry-name" style="font-size:13px;padding-left:6px">${r.name}</div>
     <div class="time-grp">
-      <input class="time-inp ot-h-inp" type="number" data-pid="${r.id}" value="${r.dH}" min="0" max="12" placeholder="0" oninput="syncOTTimeToPct('${r.id}')">
+      <input class="time-inp ot-h-inp" type="number" data-pid="${r.id}" value="${r.dH}" min="0" max="12" placeholder="0"
+        oninput="syncOTTimeToPct('${r.id}')"
+        onblur="autoFillLast('ot-pct');calcOtTotal()">
       <span class="time-sep">h</span>
-      <input class="time-inp ot-m-inp" type="number" data-pid="${r.id}" value="${r.dM}" min="0" max="59" step="5" placeholder="0" oninput="syncOTTimeToPct('${r.id}')">
+      <input class="time-inp ot-m-inp" type="number" data-pid="${r.id}" value="${r.dM}" min="0" max="59" step="5" placeholder="0"
+        oninput="syncOTTimeToPct('${r.id}')"
+        onblur="autoFillLast('ot-pct');calcOtTotal()">
       <span class="time-sep">m</span>
     </div>
     <span class="bidir">↔</span>
-    <input type="number" class="entry-input ot-pct" data-pid="${r.id}" value="${r.pct}" min="0" max="100" placeholder="%" oninput="syncOTPctToTime('${r.id}');autoFillLast('ot-pct');calcOtTotal()">
+    <input type="number" class="entry-input ot-pct" data-pid="${r.id}" value="${r.pct}" min="0" max="100" placeholder="%"
+      oninput="syncOTPctToTime('${r.id}');calcOtTotal()"
+      onblur="autoFillLast('ot-pct');calcOtTotal()">
   </div>`).join('');
 
   const editBar = isAlreadySubmitted ? `
@@ -2904,24 +2949,17 @@ function renderDailyUI(existing=null, mmHTML='') {
         </div>
       </div>
       <div class="card-body">
-        <!-- 컬럼 헤더 -->
-        <div class="entry-col-hdr">
-          <span style="width:22px"></span>
-          <span class="ch" style="flex:1">프로젝트</span>
-          <span class="ch">⏱ 시간 입력</span>
-          <span class="bidir">↔</span>
-          <span class="ch" style="width:60px;text-align:center">% 입력</span>
-        </div>
         <div id="daily-entries">${entryRows}${etcRow}</div>
         <div class="progress-wrap"><div class="progress-fill" id="di-bar" style="width:0%"></div></div>
-        <div class="total-row">
-          <span>합계</span>
+        <div class="adj-wrap mt-8">
           <div style="display:flex;align-items:center;gap:10px">
-            <span class="total-time-hint" id="di-total-time"></span>
-            <span id="di-total" class="total-err">0% / 100%</span>
+            <span style="font-size:13px;font-weight:600">합계</span>
+            <span id="di-total-time" class="total-time-hint"></span>
+            <span id="di-total" class="total-err">0%</span>
           </div>
+          <button id="btn-adj-pct" class="adj-btn hidden" onclick="proportionalAdjust()">⚖️ 비례조정</button>
         </div>
-      </div>
+      </div></div>
     </div>
     <!-- 야근 -->
     <div class="card mb-16">
@@ -2969,7 +3007,100 @@ function toggleEtcMemo() {
   if (wrap) tog('etc-memo-wrap', pct > 0);
 }
 
-// ── 시간 ↔ % 동기화 ─────────────────────────────────────
+// ── C안: % 입력 → 시간 자동계산 ─────────────────────────
+function pctToTimeStr(pct) {
+  const mins = Math.round(parseInt(pct) * baseHours * 60 / 100);
+  return mins > 0 ? `${Math.floor(mins/60)}h ${String(mins%60).padStart(2,'0')}m` : '-';
+}
+
+function setPct(pid, val) {
+  const inp = document.querySelector(`.daily-pct[data-pid="${pid}"]`);
+  if (!inp) return;
+  inp.value = val;
+  if (pid === 'etc') toggleEtcMemo();
+  // 퀵버튼 active 상태 갱신
+  document.querySelectorAll(`.qbtn`).forEach(btn => {
+    if (btn.getAttribute('onclick') === `setPct('${pid}',${val})`) {
+      btn.classList.add('qactive');
+    }
+  });
+  calcPctTotal();
+}
+
+function fillRemainder(pid) {
+  const inputs = [...document.querySelectorAll('.daily-pct')];
+  const others = inputs.filter(inp => inp.dataset.pid !== pid);
+  const otherTotal = others.reduce((s, inp) => s + (parseInt(inp.value)||0), 0);
+  const remaining = Math.max(0, 100 - otherTotal);
+  const inp = document.querySelector(`.daily-pct[data-pid="${pid}"]`);
+  if (inp) {
+    inp.value = remaining;
+    if (pid === 'etc') toggleEtcMemo();
+  }
+  calcPctTotal();
+}
+
+function proportionalAdjust() {
+  const inputs = [...document.querySelectorAll('.daily-pct')].filter(inp => parseInt(inp.value) > 0);
+  if (!inputs.length) return;
+  const total = inputs.reduce((s, inp) => s + (parseInt(inp.value)||0), 0);
+  if (total === 0) return;
+  let rem = 100;
+  inputs.forEach((inp, i) => {
+    if (i === inputs.length - 1) {
+      inp.value = Math.max(0, rem);
+    } else {
+      const adjusted = Math.floor(parseInt(inp.value) / total * 100);
+      inp.value = adjusted;
+      rem -= adjusted;
+    }
+  });
+  calcPctTotal();
+}
+
+function calcPctTotal() {
+  const inputs = [...document.querySelectorAll('.daily-pct')];
+  let total = 0;
+  inputs.forEach(inp => {
+    const pct = parseInt(inp.value) || 0;
+    total += pct;
+    const pid = inp.dataset.pid;
+    // 시간 표시 업데이트
+    const tcEl = document.getElementById(`time-calc-${pid}`);
+    if (tcEl) tcEl.textContent = pct > 0 ? pctToTimeStr(pct) : '-';
+    // 퀵버튼 active 상태 갱신
+    const qbtns = document.querySelectorAll(`.qbtn`);
+    qbtns.forEach(btn => {
+      const oc = btn.getAttribute('onclick') || '';
+      if (oc.includes(`'${pid}'`)) {
+        const v = parseInt(oc.match(/,(\d+)\)/)?.[1]);
+        btn.classList.toggle('qactive', v === pct);
+      }
+    });
+  });
+
+  // 합계 표시
+  const bar    = $('di-bar');
+  const totEl  = $('di-total');
+  const adjBtn = $('btn-adj-pct');
+  const hint   = $('di-total-time');
+
+  if (bar)   bar.style.width = Math.min(total, 100) + '%';
+  if (bar)   bar.style.background = total > 100 ? 'var(--danger)' : total === 100 ? 'var(--success)' : 'var(--primary-light)';
+
+  const totalMins = Math.round(total * baseHours * 60 / 100);
+  if (hint)  hint.textContent = total > 0 ? `${Math.floor(totalMins/60)}h ${String(totalMins%60).padStart(2,'0')}m` : '';
+
+  if (totEl) {
+    if (total === 100) { totEl.textContent = '100% ✅'; totEl.className = 'total-ok'; }
+    else if (total > 100) { totEl.textContent = `${total}% ⚠️ ${total-100}% 초과`; totEl.className = 'total-err'; }
+    else if (total > 0)   { totEl.textContent = `${total}% / 100% (${100-total}% 부족)`; totEl.className = 'total-warn'; }
+    else                  { totEl.textContent = '0%'; totEl.className = 'total-err'; }
+  }
+  if (adjBtn) tog('btn-adj-pct', total > 0 && total !== 100);
+}
+
+function calcDailyTotal() { calcPctTotal(); } // 하위 호환
 // 마지막 빈 항목에 나머지 % 자동 배정 (B안)
 function autoFillLast(cls) {
   const inputs = [...document.querySelectorAll('.' + cls)];
@@ -3021,11 +3152,10 @@ function syncTimeToPct(pid) {
   const pctInp = document.querySelector(`.daily-pct[data-pid="${pid}"]`);
   if (!pctInp) return;
   pctInp.value = totalMins > 0 ? Math.round(totalMins / (baseHours * 60) * 100) : '';
-  // 모두 채워진 경우 비례 재배분 → 100% 보장
   redistributeByTime('daily-pct', 'time-h-inp', 'time-m-inp');
   if (pid === 'etc') toggleEtcMemo();
-  autoFillLast('daily-pct');
   calcDailyTotal();
+  // ※ autoFillLast는 onblur(입력 완료)에서만 호출
 }
 
 function syncPctToTime(pid) {
@@ -3050,8 +3180,8 @@ function syncOTTimeToPct(pid) {
   if (!pctInp) return;
   pctInp.value = (otHrs > 0 && totalMins > 0) ? Math.round(totalMins / (otHrs * 60) * 100) : '';
   redistributeByTime('ot-pct', 'ot-h-inp', 'ot-m-inp');
-  autoFillLast('ot-pct');
   calcOtTotal();
+  // ※ autoFillLast는 onblur(입력 완료)에서만 호출
 }
 
 function syncOTPctToTime(pid) {
@@ -3130,13 +3260,19 @@ function renderOTEntries() {
     return `<div class="entry-row">
       <div class="entry-name" style="font-size:13px;padding-left:6px">${r.name}</div>
       <div class="time-grp">
-        <input class="time-inp ot-h-inp" type="number" data-pid="${r.id}" value="${dH}" min="0" max="12" placeholder="0" oninput="syncOTTimeToPct('${r.id}')">
+        <input class="time-inp ot-h-inp" type="number" data-pid="${r.id}" value="${dH}" min="0" max="12" placeholder="0"
+          oninput="syncOTTimeToPct('${r.id}')"
+          onblur="autoFillLast('ot-pct');calcOtTotal()">
         <span class="time-sep">h</span>
-        <input class="time-inp ot-m-inp" type="number" data-pid="${r.id}" value="${dM}" min="0" max="59" step="5" placeholder="0" oninput="syncOTTimeToPct('${r.id}')">
+        <input class="time-inp ot-m-inp" type="number" data-pid="${r.id}" value="${dM}" min="0" max="59" step="5" placeholder="0"
+          oninput="syncOTTimeToPct('${r.id}')"
+          onblur="autoFillLast('ot-pct');calcOtTotal()">
         <span class="time-sep">m</span>
       </div>
       <span class="bidir">↔</span>
-      <input type="number" class="entry-input ot-pct" data-pid="${r.id}" value="${oldPct}" min="0" max="100" placeholder="%" oninput="syncOTPctToTime('${r.id}');autoFillLast('ot-pct');calcOtTotal()">
+      <input type="number" class="entry-input ot-pct" data-pid="${r.id}" value="${oldPct}" min="0" max="100" placeholder="%"
+        oninput="syncOTPctToTime('${r.id}');calcOtTotal()"
+        onblur="autoFillLast('ot-pct');calcOtTotal()">
     </div>`;
   }).join('');
   cont.innerHTML = rows;
