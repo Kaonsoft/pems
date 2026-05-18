@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Kaon-PEMS v1.3.6</title>
+<title>Kaon-PEMS v1.3.7</title>
 
 <!-- Firebase SDK (v9 compat) -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -272,6 +272,7 @@ tr:hover td { background: #FAFBFC; }
 .badge-info { background: var(--info-bg); color: var(--info); }
 .badge-gray { background: #F1F5F9; color: #64748B; }
 .badge-purple { background: #F3E8FF; color: #7C3AED; }
+.badge-invest { background:#EDE9FE;color:#6D28D9;font-size:11px;padding:2px 8px;border-radius:4px;font-weight:700; }
 
 /* === MODALS === */
 .modal-overlay {
@@ -1223,9 +1224,18 @@ select.form-control { cursor: pointer; }
         </div>
       </div>
       <div class="form-group">
-        <label>예산 (원) *</label>
-        <input type="number" id="proj-budget" class="form-control" placeholder="예산 입력 (예: 50000000)" oninput="updateBudgetPreview()">
+        <label>예산 (원)</label>
+        <div style="display:flex;align-items:center;gap:12px">
+          <input type="number" id="proj-budget" class="form-control" placeholder="예산 입력 (예: 50000000)" oninput="updateBudgetPreview()" style="flex:1">
+          <label style="display:flex;align-items:center;gap:6px;white-space:nowrap;cursor:pointer;flex-shrink:0">
+            <input type="checkbox" id="proj-investment" onchange="toggleInvestment()">
+            <span style="font-size:13px;font-weight:600;color:#6D28D9">🔬 투자사업</span>
+          </label>
+        </div>
         <div id="proj-budget-preview" class="text-muted mt-8"></div>
+        <div id="investment-hint" class="info-notice mt-8 hidden" style="font-size:12px">
+          ℹ️ 투자사업은 예산 0원으로 처리됩니다. 참여 개발자의 투입 시간을 기반으로 <strong>인건비 투자액</strong>이 자동 산출됩니다.
+        </div>
       </div>
       <div class="form-group">
         <label>투입 개발자 및 계획 M/M</label>
@@ -1467,7 +1477,7 @@ select.form-control { cursor: pointer; }
 // ============================================================
 // 버전 관리  x.x.x = 메이저.마이너.패치
 // ============================================================
-const APP_VERSION = 'v1.3.6';
+const APP_VERSION = 'v1.3.7';
 
 const CHANGELOG = [
   {
@@ -2112,12 +2122,21 @@ function openProjectModal(p=null) {
   $('proj-name').value   = p?.name||'';
   $('proj-start').value  = p?.startDate||'';
   $('proj-end').value    = p?.endDate||'';
-  $('proj-budget').value = p?.budget||'';
   $('modal-proj-title').textContent = p ? '프로젝트 수정' : '프로젝트 추가';
 
+  // 투자사업 초기화
+  const isInvest = p?.isInvestment || false;
+  $('proj-investment').checked = isInvest;
+  $('proj-budget').value   = isInvest ? 0 : (p?.budget||'');
+  $('proj-budget').disabled = isInvest;
+  $('proj-budget').style.background = isInvest ? '#F8FAFC' : '';
+  tog('investment-hint', isInvest);
+
+  // 기업 목록 — 가나다/ABC 순 정렬
+  const sortedCos = [...allCompanies].sort((a,b) => a.name.localeCompare(b.name, 'ko'));
   const coSel = $('proj-co');
   coSel.innerHTML = '<option value="">기업 선택</option>' +
-    allCompanies.map(c=>`<option value="${c.id}"${p?.companyId===c.id?' selected':''}>${c.name}</option>`).join('');
+    sortedCos.map(c=>`<option value="${c.id}"${p?.companyId===c.id?' selected':''}>${c.name}</option>`).join('');
 
   // M/M 입력 행
   $('proj-members-list').innerHTML = allDevs.map(d => {
@@ -2140,20 +2159,39 @@ function openProjectModal(p=null) {
   updateBudgetPreview();
   show('modal-project');
 }
+
+function toggleInvestment() {
+  const checked = $('proj-investment').checked;
+  const budgetInp = $('proj-budget');
+  if (checked) {
+    budgetInp.value = 0;
+    budgetInp.disabled = true;
+    budgetInp.style.background = '#F8FAFC';
+    show('investment-hint');
+  } else {
+    budgetInp.disabled = false;
+    budgetInp.style.background = '';
+    budgetInp.value = '';
+    hide('investment-hint');
+  }
+  updateBudgetPreview();
+}
 function updateBudgetPreview() {
   const v = parseInt($('proj-budget')?.value)||0;
   const el = $('proj-budget-preview');
   if (el) el.textContent = v > 0 ? `= ${fmt(v)}` : '';
 }
 async function saveProject() {
-  const name   = $('proj-name').value.trim();
-  const coId   = $('proj-co').value;
-  const start  = $('proj-start').value;
-  const end    = $('proj-end').value;
-  const budget = parseInt($('proj-budget').value)||0;
+  const name       = $('proj-name').value.trim();
+  const coId       = $('proj-co').value;
+  const start      = $('proj-start').value;
+  const end        = $('proj-end').value;
+  const isInvest   = $('proj-investment').checked;
+  const budget     = isInvest ? 0 : (parseInt($('proj-budget').value)||0);
 
-  if (!name||!coId||!start||!end||!budget) { toast('모든 필드를 입력하세요.','error'); return; }
-  if (end < start) { toast('종료일이 시작일보다 앞입니다.','error'); return; }
+  if (!name||!coId||!start||!end) { toast('기업, 프로젝트명, 기간을 입력하세요.','error'); return; }
+  if (!isInvest && !budget)       { toast('예산을 입력하거나 투자사업으로 체크하세요.','error'); return; }
+  if (end < start)                { toast('종료일이 시작일보다 앞입니다.','error'); return; }
 
   // members + memberMM 수집
   const members = [];
@@ -2167,7 +2205,7 @@ async function saveProject() {
   showLoad(true);
   const id = $('proj-id').value;
   try {
-    const data = {name, companyId:coId, startDate:start, endDate:end, budget, members, memberMM};
+    const data = {name, companyId:coId, startDate:start, endDate:end, budget, isInvestment:isInvest, members, memberMM};
     if (id) {
       await db.collection('projects').doc(id).update(data);
     } else {
@@ -2209,17 +2247,21 @@ function renderProjects() {
     const co     = allCompanies.find(c=>c.id===p.companyId);
     const status = p.endDate < t ? '완료' : p.startDate > t ? '예정' : '진행중';
     const cls    = {완료:'badge-gray',예정:'badge-warning',진행중:'badge-success'}[status];
+    const budgetCell = p.isInvestment
+      ? `<span class="badge-invest">🔬 투자사업</span>`
+      : fmt(p.budget);
+    const acts = canWrite('projects')
+      ? `<button class="btn btn-secondary btn-xs" onclick='openProjectModal(${JSON.stringify(p)})'>수정</button>
+         <button class="btn btn-danger btn-xs" onclick="deleteProject('${p.id}','${p.name}')">삭제</button>`
+      : `<span class="badge badge-warning" style="font-size:10px">읽기전용</span>`;
     return `<tr>
       <td>${co?.name||'-'}</td>
       <td><strong>${p.name}</strong></td>
       <td style="white-space:nowrap">${fmtDate(p.startDate)} ~ ${fmtDate(p.endDate)}</td>
-      <td>${fmt(p.budget)}</td>
+      <td>${budgetCell}</td>
       <td>${p.members?.length||0}명</td>
       <td><span class="badge ${cls}">${status}</span></td>
-      <td class="td-actions">
-        <button class="btn btn-secondary btn-xs" onclick='openProjectModal(${JSON.stringify(p)})'>수정</button>
-        <button class="btn btn-danger btn-xs" onclick="deleteProject('${p.id}','${p.name}')">삭제</button>
-      </td>
+      <td class="td-actions">${acts}</td>
     </tr>`;
   }).join('');
 }
