@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Kaon-PEMS v1.4.0</title>
+<title>Kaon-PEMS v1.4.1</title>
 
 <!-- Firebase SDK (v9 compat) -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -274,7 +274,28 @@ tr:hover td { background: #FAFBFC; }
 .badge-purple { background: #F3E8FF; color: #7C3AED; }
 .badge-invest { background:#EDE9FE;color:#6D28D9;font-size:11px;padding:2px 8px;border-radius:4px;font-weight:700; }
 
-/* ── 위클리 보고 ── */
+/* ── 생산성 리포트 ── */
+.report-stat-grid { display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px; }
+.report-stat { background:white;border:1.5px solid var(--border);border-radius:12px;padding:16px;text-align:center; }
+.report-stat-val { font-size:28px;font-weight:800;color:var(--primary-light);line-height:1; }
+.report-stat-unit { font-size:12px;font-weight:600;color:var(--text-3);margin-left:2px; }
+.report-stat-lbl { font-size:11px;color:var(--text-3);margin-top:6px; }
+.report-proj-bar { display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #F8FAFC; }
+.report-proj-bar:last-child { border-bottom:none; }
+.report-proj-name { width:140px;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0; }
+.report-bar-wrap { flex:1;background:#F1F5F9;border-radius:999px;height:10px;overflow:hidden; }
+.report-bar-fill { height:100%;border-radius:999px;background:var(--primary-light);transition:width .4s; }
+.report-bar-pct { width:45px;font-size:12px;font-weight:700;color:var(--text-2);text-align:right;flex-shrink:0; }
+.report-bar-time { width:55px;font-size:11px;color:var(--text-3);text-align:right;flex-shrink:0; }
+.weekly-check { display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;font-size:13px; }
+.wc-done { background:#D1FAE5;color:#059669; }
+.wc-partial { background:#FEF3C7;color:#D97706; }
+.wc-none { background:#F1F5F9;color:#94A3B8; }
+.report-member-row { display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid #F8FAFC;cursor:pointer;transition:background .12s; }
+.report-member-row:hover { background:#FAFBFC; }
+.report-tabs { display:flex;gap:4px;margin-bottom:16px; }
+.report-tab { padding:8px 18px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:1.5px solid var(--border);background:white;color:var(--text-2);transition:all .12s; }
+.report-tab.active { background:var(--primary-light);color:white;border-color:var(--primary-light); }
 .week-nav { display:flex;align-items:center;justify-content:space-between;margin-bottom:14px; }
 .week-label { font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px; }
 .week-tabs { display:flex;gap:4px;margin-bottom:16px; }
@@ -1104,6 +1125,22 @@ select.form-control { cursor: pointer; }
       </div>
     </div>
 
+    <!-- ─── 생산성 리포트 ─── -->
+    <div id="view-report" class="view hidden">
+      <div class="page-header">
+        <div>
+          <div class="page-title">📊 생산성 리포트</div>
+          <div class="page-subtitle" id="report-subtitle"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <button class="btn btn-secondary btn-xs" onclick="reportNavPrev()">← 이전달</button>
+          <input type="month" id="report-month" class="form-control" style="width:auto" onchange="loadReport()">
+          <button class="btn btn-secondary btn-xs" onclick="reportNavNext()">다음달 →</button>
+        </div>
+      </div>
+      <div id="report-content"></div>
+    </div>
+
     <!-- ─── 위클리 보고 ─── -->
     <div id="view-weekly" class="view hidden">
       <div class="page-header">
@@ -1539,7 +1576,7 @@ select.form-control { cursor: pointer; }
 // ============================================================
 // 버전 관리  x.x.x = 메이저.마이너.패치
 // ============================================================
-const APP_VERSION = 'v1.4.0';
+const APP_VERSION = 'v1.4.1';
 
 const CHANGELOG = [
   {
@@ -2116,6 +2153,9 @@ function buildSidebar(isAdminUser, permissions) {
     <button class="nav-item" id="nav-my-history" onclick="adminGo('my-history')">
       <span class="nav-icon">📅</span> 나의 현황
     </button>
+    <button class="nav-item" id="nav-report" onclick="adminGo('report')">
+      <span class="nav-icon">📊</span> 생산성 리포트
+    </button>
     <button class="nav-item" id="nav-weekly" onclick="adminGo('weekly')">
       <span class="nav-icon">📋</span> 위클리 보고
     </button>`;
@@ -2197,6 +2237,7 @@ function adminGo(view) {
   if (view==='members')      loadMembers();
   if (view==='daily-input')  loadDailyInput();
   if (view==='my-history')   loadHistory();
+  if (view==='report')       loadReport();
   if (view==='weekly')       loadWeeklyView();
 }
 
@@ -3270,10 +3311,8 @@ function calcPctTotal() {
     const pct = parseInt(inp.value) || 0;
     total += pct;
     const pid = inp.dataset.pid;
-    // 시간 표시 업데이트
     const tcEl = document.getElementById(`time-calc-${pid}`);
     if (tcEl) tcEl.textContent = pct > 0 ? pctToTimeStr(pct) : '-';
-    // 퀵버튼 active 상태 갱신
     const qbtns = document.querySelectorAll(`.qbtn`);
     qbtns.forEach(btn => {
       const oc = btn.getAttribute('onclick') || '';
@@ -3284,28 +3323,47 @@ function calcPctTotal() {
     });
   });
 
-  // 합계 표시
   const bar    = $('di-bar');
   const totEl  = $('di-total');
   const adjBtn = $('btn-adj-pct');
   const hint   = $('di-total-time');
+  const subBtn = $('submit-btn'); // ← 제출 버튼
 
-  if (bar)   bar.style.width = Math.min(total, 100) + '%';
-  if (bar)   bar.style.background = total > 100 ? 'var(--danger)' : total === 100 ? 'var(--success)' : 'var(--primary-light)';
+  if (bar) {
+    bar.style.width = Math.min(total, 100) + '%';
+    bar.style.background = total > 100 ? 'var(--danger)' : total === 100 ? 'var(--success)' : 'var(--primary-light)';
+  }
 
   const totalMins = Math.round(total * baseHours * 60 / 100);
-  if (hint)  hint.textContent = total > 0 ? `${Math.floor(totalMins/60)}h ${String(totalMins%60).padStart(2,'0')}m` : '';
+  if (hint) hint.textContent = total > 0 ? `${Math.floor(totalMins/60)}h ${String(totalMins%60).padStart(2,'0')}m` : '';
 
-  if (totEl) {
-    if (total === 100) { totEl.textContent = '100% ✅'; totEl.className = 'total-ok'; }
-    else if (total > 100) { totEl.textContent = `${total}% ⚠️ ${total-100}% 초과`; totEl.className = 'total-err'; }
-    else if (total > 0)   { totEl.textContent = `${total}% / 100% (${100-total}% 부족)`; totEl.className = 'total-warn'; }
-    else                  { totEl.textContent = '0%'; totEl.className = 'total-err'; }
+  if (total === 100) {
+    if (totEl) { totEl.textContent = '100% ✅'; totEl.className = 'total-ok'; }
+    // 제출 버튼 활성화
+    if (subBtn) {
+      subBtn.disabled = false;
+      subBtn.textContent = _currentExisting && !_currentExisting._auto ? '수정하기' : '제출하기';
+    }
+  } else {
+    if (totEl) {
+      totEl.textContent = total > 100
+        ? `${total}% ⚠️ ${total-100}% 초과`
+        : total > 0 ? `${total}% / 100% (${100-total}% 부족)` : '0%';
+      totEl.className = total > 100 ? 'total-err' : total > 0 ? 'total-warn' : 'total-err';
+    }
+    // 제출 버튼 비활성화
+    if (subBtn) {
+      subBtn.disabled = true;
+      const lack = 100 - total;
+      subBtn.textContent = total < 100
+        ? `제출하기 (${lack}% · ${minsToHM(Math.round(lack * baseHours * 60 / 100))} 부족)`
+        : `제출하기 (${total-100}% 초과 → 야근 섹션 이용)`;
+    }
   }
   if (adjBtn) tog('btn-adj-pct', total > 0 && total !== 100);
 }
 
-function calcDailyTotal() { calcPctTotal(); } // 하위 호환
+function calcDailyTotal() { calcPctTotal(); }
 // 마지막 빈 항목에 나머지 % 자동 배정 (B안)
 function autoFillLast(cls) {
   const inputs = [...document.querySelectorAll('.' + cls)];
@@ -3890,7 +3948,344 @@ async function saveProfile() {
   showLoad(false);
 }
 
-// ── 위클리 보고 ─────────────────────────────────────────
+// ── 생산성 리포트 ─────────────────────────────────────────
+let _reportTab = 'my'; // 'my' | 'team'
+
+async function loadReport() {
+  const monthEl = $('report-month');
+  if (!monthEl.value) monthEl.value = monthStr();
+  const ym = monthEl.value; // 'YYYY-MM'
+  $('report-subtitle').textContent = `${ym.replace('-','년 ')}월`;
+
+  const cont = $('report-content');
+  // 관리자: 탭 표시
+  const tabBar = isAdmin ? `<div class="report-tabs">
+    <button class="report-tab${_reportTab==='my'?' active':''}" onclick="switchReportTab('my')">👤 내 현황</button>
+    <button class="report-tab${_reportTab==='team'?' active':''}" onclick="switchReportTab('team')">👥 팀 현황</button>
+  </div>` : '';
+
+  cont.innerHTML = tabBar + '<div id="report-body"><div class="text-muted" style="padding:32px;text-align:center">로딩 중...</div></div>';
+
+  if (isAdmin && _reportTab === 'team') {
+    await renderTeamReport(ym);
+  } else {
+    await renderMyReport(ym, currentUser.uid);
+  }
+}
+
+function switchReportTab(tab) { _reportTab = tab; loadReport(); }
+function reportNavPrev() {
+  const m = $('report-month'); const d = new Date(m.value+'-01');
+  d.setMonth(d.getMonth()-1); m.value=d.toISOString().substr(0,7); loadReport();
+}
+function reportNavNext() {
+  const m = $('report-month'); const d = new Date(m.value+'-01');
+  d.setMonth(d.getMonth()+1); m.value=d.toISOString().substr(0,7); loadReport();
+}
+
+// ── 개인 리포트 ───────────────────────────────────────────
+async function renderMyReport(ym, uid) {
+  const body = $('report-body');
+  try {
+    // 해당 월 로그 조회
+    const [y,m] = ym.split('-');
+    const startDate = `${y}-${m}-01`;
+    const endDate   = `${y}-${m}-${new Date(y,m,0).getDate()}`;
+
+    // uid 단일 조건만 사용 (복합 인덱스 불필요), 날짜 필터는 클라이언트에서
+    const snap = await db.collection('dailyLogs').where('uid','==',uid).get();
+    const logs = snap.docs.map(d=>({id:d.id,...d.data()}))
+      .filter(l => l.date >= startDate && l.date <= endDate);
+
+    // 근무 통계
+    const workLogs  = logs.filter(l=>l.status==='submitted');
+    const leaveFull = logs.filter(l=>l.status==='leave_full').length;
+    const leaveHalf = logs.filter(l=>l.status==='leave_am'||l.status==='leave_pm').length;
+    const otLogs    = logs.filter(l=>l.overtime?.exists);
+    const totalOT   = otLogs.reduce((s,l)=>s+(l.overtime?.hours||0),0);
+
+    // 총 투입 시간 계산
+    let totalMins = 0;
+    const projMap = {}; // projectId → {name, mins}
+    workLogs.forEach(log => {
+      const bh = (log.status==='leave_am'||log.status==='leave_pm') ? HALF_HOURS : WORK_HOURS;
+      (log.entries||[]).forEach(e => {
+        const mins = Math.round((e.percent||0) * bh * 60 / 100);
+        totalMins += mins;
+        if (e.projectId && e.projectId !== 'etc') {
+          const proj = allProjects.find(p=>p.id===e.projectId);
+          const name = proj?.name || e.projectId;
+          if (!projMap[e.projectId]) projMap[e.projectId] = {name, mins:0};
+          projMap[e.projectId].mins += mins;
+        }
+      });
+    });
+
+    const totalH   = Math.floor(totalMins/60);
+    const totalM   = totalMins % 60;
+    const mm       = (totalMins / (MM_HOURS * 60)).toFixed(2);
+    const workDays = workLogs.length;
+
+    // 위클리 보고 현황
+    const weeks = getMonthWeeks(ym);
+    const wkSnap = await db.collection('weeklyPlans')
+      .where('uid','==',uid).get();
+    const wrSnap = await db.collection('weeklyReports')
+      .where('uid','==',uid).get();
+    const planMap = {}; wkSnap.docs.forEach(d=>{planMap[d.data().weekStart]=d.data().status;});
+    const repMap  = {}; wrSnap.docs.forEach(d=>{repMap[d.data().weekStart]=d.data().status;});
+
+    const weekChecks = weeks.map(ws => {
+      const pSt = planMap[ws], rSt = repMap[ws];
+      const pIcon = pSt==='submitted'?'✅':pSt?'⚠️':'－';
+      const rIcon = rSt==='submitted'?'✅':rSt?'⚠️':'－';
+      const pCls  = pSt==='submitted'?'wc-done':pSt?'wc-partial':'wc-none';
+      const rCls  = rSt==='submitted'?'wc-done':rSt?'wc-partial':'wc-none';
+      const we = new Date(ws+'T12:00:00'); we.setDate(we.getDate()+4);
+      const lbl = `${we.getMonth()+1}/${ws.split('-')[2].replace(/^0/,'')}~${we.getDate()}`;
+      return `<div style="text-align:center">
+        <div style="font-size:10px;color:var(--text-3);margin-bottom:4px">${lbl}</div>
+        <div style="display:flex;gap:3px;justify-content:center">
+          <span class="weekly-check ${pCls}" title="계획">${pIcon}</span>
+          <span class="weekly-check ${rCls}" title="결과">${rIcon}</span>
+        </div>
+      </div>`;
+    }).join('');
+
+    // 프로젝트 바 차트
+    const projEntries = Object.values(projMap).sort((a,b)=>b.mins-a.mins);
+    const maxMins = projEntries[0]?.mins || 1;
+    const projBars = projEntries.map(p => {
+      const pct = Math.round(p.mins / totalMins * 100) || 0;
+      const ph  = Math.floor(p.mins/60), pm = p.mins%60;
+      return `<div class="report-proj-bar">
+        <div class="report-proj-name">${p.name}</div>
+        <div class="report-bar-wrap">
+          <div class="report-bar-fill" style="width:${p.mins/maxMins*100}%"></div>
+        </div>
+        <div class="report-bar-pct">${pct}%</div>
+        <div class="report-bar-time">${ph}h${pm?` ${pm}m`:''}</div>
+      </div>`;
+    }).join('') || '<div class="text-muted">투입 데이터가 없습니다.</div>';
+
+    body.innerHTML = `
+      <!-- 핵심 지표 -->
+      <div class="report-stat-grid">
+        <div class="report-stat">
+          <div class="report-stat-val">${totalH}<span class="report-stat-unit">h</span>${totalM?`<span style="font-size:16px"> ${totalM}m</span>`:''}</div>
+          <div class="report-stat-lbl">총 투입 시간</div>
+        </div>
+        <div class="report-stat">
+          <div class="report-stat-val">${mm}<span class="report-stat-unit">M/M</span></div>
+          <div class="report-stat-lbl">M/M 소진</div>
+        </div>
+        <div class="report-stat">
+          <div class="report-stat-val">${workDays}<span class="report-stat-unit">일</span></div>
+          <div class="report-stat-lbl">출근 일수</div>
+        </div>
+        <div class="report-stat">
+          <div class="report-stat-val">${totalOT}<span class="report-stat-unit">h</span></div>
+          <div class="report-stat-lbl">야근 시간</div>
+        </div>
+        <div class="report-stat">
+          <div class="report-stat-val">${leaveFull}<span class="report-stat-unit">일</span></div>
+          <div class="report-stat-lbl">연차 사용</div>
+        </div>
+        <div class="report-stat">
+          <div class="report-stat-val">${leaveHalf}<span class="report-stat-unit">회</span></div>
+          <div class="report-stat-lbl">반차 사용</div>
+        </div>
+      </div>
+
+      <!-- 프로젝트 투입 현황 -->
+      <div class="card mb-16">
+        <div class="card-header"><div class="card-title">📁 프로젝트별 투입 현황</div></div>
+        <div class="card-body">${projBars}</div>
+      </div>
+
+      <!-- 위클리 보고 현황 -->
+      <div class="card">
+        <div class="card-header"><div class="card-title">📋 위클리 보고 현황</div>
+          <div style="font-size:11px;color:var(--text-3)">왼쪽=계획 / 오른쪽=결과</div>
+        </div>
+        <div class="card-body">
+          <div style="display:flex;gap:16px;flex-wrap:wrap">${weekChecks}</div>
+        </div>
+      </div>`;
+  } catch(e) {
+    body.innerHTML = `<div class="error-msg" style="margin:16px">조회 실패: ${e.message}</div>`;
+  }
+}
+
+// ── 팀 리포트 (관리자) ───────────────────────────────────
+async function renderTeamReport(ym) {
+  const body = $('report-body');
+  const [y,m] = ym.split('-');
+  const startDate = `${y}-${m}-01`;
+  const endDate   = `${y}-${m}-${new Date(y,m,0).getDate()}`;
+  const weeks     = getMonthWeeks(ym);
+
+  try {
+    // 전체 조회 후 클라이언트 필터 (인덱스 불필요)
+    const snap = await db.collection('dailyLogs').get();
+    const allLogs = snap.docs.map(d=>({id:d.id,...d.data()}))
+      .filter(l => l.date >= startDate && l.date <= endDate);
+    const logsByUid = {};
+    allLogs.forEach(l => {
+      if (!logsByUid[l.uid]) logsByUid[l.uid] = [];
+      logsByUid[l.uid].push(l);
+    });
+
+    // 위클리 현황
+    const [wpSnap, wrSnap] = await Promise.all([
+      db.collection('weeklyPlans').get(),
+      db.collection('weeklyReports').get(),
+    ]);
+    const wpMap = {}; wpSnap.docs.forEach(d=>{const dd=d.data(); if(!wpMap[dd.uid]) wpMap[dd.uid]={}; wpMap[dd.uid][dd.weekStart]=dd.status;});
+    const wrMap = {}; wrSnap.docs.forEach(d=>{const dd=d.data(); if(!wrMap[dd.uid]) wrMap[dd.uid]={}; wrMap[dd.uid][dd.weekStart]=dd.status;});
+
+    const rows = allDevs.map(dev => {
+      const logs = logsByUid[dev.id] || [];
+      const workLogs = logs.filter(l=>l.status==='submitted');
+      let totalMins = 0;
+      workLogs.forEach(log => {
+        const bh = WORK_HOURS;
+        (log.entries||[]).forEach(e => { totalMins += Math.round((e.percent||0)*bh*60/100); });
+      });
+      const totalH = Math.floor(totalMins/60);
+      const mm = (totalMins/(MM_HOURS*60)).toFixed(2);
+      const otH = logs.reduce((s,l)=>s+(l.overtime?.hours||0),0);
+      const missingCnt = logs.filter(l=>l.status==='submitted').length;
+
+      const wkChecks = weeks.map(ws => {
+        const pSt = wpMap[dev.id]?.[ws], rSt = wrMap[dev.id]?.[ws];
+        const pCls = pSt==='submitted'?'wc-done':pSt?'wc-partial':'wc-none';
+        const rCls = rSt==='submitted'?'wc-done':rSt?'wc-partial':'wc-none';
+        return `<span class="weekly-check ${pCls}" title="계획">${pSt==='submitted'?'✅':pSt?'⚠️':'－'}</span>
+                <span class="weekly-check ${rCls}" title="결과">${rSt==='submitted'?'✅':rSt?'⚠️':'－'}</span>`;
+      }).join('<span style="color:var(--border);margin:0 4px">│</span>');
+
+      return `<div class="report-member-row" onclick="showMemberReport('${dev.id}','${escHtml(dev.name)}','${ym}')">
+        <div class="member-avatar av-approved" style="width:34px;height:34px;font-size:13px;flex-shrink:0">${dev.name.charAt(0)}</div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700">${escHtml(dev.name)}</div>
+          <div style="font-size:11px;color:var(--text-3)">${escHtml(dev.email)}</div>
+        </div>
+        <div style="width:70px;text-align:center">
+          <div style="font-size:16px;font-weight:800;color:var(--primary-light)">${totalH}h</div>
+          <div style="font-size:10px;color:var(--text-3)">${mm} M/M</div>
+        </div>
+        <div style="width:50px;text-align:center;font-size:13px;color:var(--warning);font-weight:700">${otH?otH+'h':'-'}</div>
+        <div style="display:flex;gap:3px;align-items:center">${wkChecks}</div>
+        <span style="color:var(--text-3);font-size:14px;margin-left:8px">›</span>
+      </div>`;
+    }).join('') || '<div class="text-muted" style="padding:24px;text-align:center">구성원이 없습니다.</div>';
+
+    const hdr = `<div style="display:flex;align-items:center;padding:8px 16px;border-bottom:1px solid var(--border);background:#F8FAFC;font-size:10px;font-weight:700;color:var(--text-3)">
+      <span style="width:46px"></span>
+      <span style="flex:1">구성원</span>
+      <span style="width:70px;text-align:center">투입시간</span>
+      <span style="width:50px;text-align:center">야근</span>
+      <span>위클리 (계획│결과)</span>
+    </div>`;
+
+    body.innerHTML = `<div class="card"><div class="card-body" style="padding:0">${hdr}${rows}</div></div>`;
+  } catch(e) {
+    body.innerHTML = `<div class="error-msg" style="margin:16px">조회 실패: ${e.message}</div>`;
+  }
+}
+
+async function showMemberReport(uid, name, ym) {
+  // 팀원 개인 리포트를 모달로 표시
+  $('wk-modal-title').textContent = `${name} — ${ym.replace('-','년 ')}월 리포트`;
+  $('wk-modal-body').innerHTML = '<div class="text-muted" style="padding:24px;text-align:center">로딩 중...</div>';
+  show('modal-wk-member');
+  // report-body를 모달 내부로 임시 렌더링
+  const tmpId = 'tmp-report-'+uid;
+  $('wk-modal-body').innerHTML = `<div id="${tmpId}"></div>`;
+  const orig = $('report-body');
+  const tmpEl = $(tmpId);
+  // renderMyReport를 직접 호출해서 wk-modal-body에 표시
+  const monthEl = document.createElement('input');
+  monthEl.value = ym;
+  monthEl.id = '_tmp_month';
+  document.body.appendChild(monthEl);
+  await renderMyReportInto(ym, uid, tmpEl);
+  document.body.removeChild(monthEl);
+}
+
+async function renderMyReportInto(ym, uid, container) {
+  // renderMyReport와 동일하나 다른 컨테이너에 렌더
+  const [y,m] = ym.split('-');
+  const startDate = `${y}-${m}-01`, endDate = `${y}-${m}-${new Date(y,m,0).getDate()}`;
+  try {
+    const snap = await db.collection('dailyLogs').where('uid','==',uid).get();
+    const logs = snap.docs.map(d=>({id:d.id,...d.data()}))
+      .filter(l => l.date >= startDate && l.date <= endDate);
+    const workLogs = logs.filter(l=>l.status==='submitted');
+    const leaveFull = logs.filter(l=>l.status==='leave_full').length;
+    const leaveHalf = logs.filter(l=>l.status==='leave_am'||l.status==='leave_pm').length;
+    const totalOT = logs.reduce((s,l)=>s+(l.overtime?.hours||0),0);
+    let totalMins = 0;
+    const projMap = {};
+    workLogs.forEach(log => {
+      (log.entries||[]).forEach(e => {
+        const mins = Math.round((e.percent||0)*WORK_HOURS*60/100);
+        totalMins += mins;
+        if (e.projectId && e.projectId!=='etc') {
+          const proj = allProjects.find(p=>p.id===e.projectId);
+          const name = proj?.name || e.projectId;
+          if (!projMap[e.projectId]) projMap[e.projectId]={name,mins:0};
+          projMap[e.projectId].mins += mins;
+        }
+      });
+    });
+    const totalH = Math.floor(totalMins/60), totalM = totalMins%60;
+    const mm = (totalMins/(MM_HOURS*60)).toFixed(2);
+    const projEntries = Object.values(projMap).sort((a,b)=>b.mins-a.mins);
+    const maxMins = projEntries[0]?.mins||1;
+    const projBars = projEntries.map(p=>{
+      const pct=Math.round(p.mins/totalMins*100)||0;
+      const ph=Math.floor(p.mins/60),pm=p.mins%60;
+      return `<div class="report-proj-bar">
+        <div class="report-proj-name">${p.name}</div>
+        <div class="report-bar-wrap"><div class="report-bar-fill" style="width:${p.mins/maxMins*100}%"></div></div>
+        <div class="report-bar-pct">${pct}%</div>
+        <div class="report-bar-time">${ph}h${pm?` ${pm}m`:''}</div>
+      </div>`;
+    }).join('')||'<div class="text-muted">데이터 없음</div>';
+
+    container.innerHTML = `
+      <div class="report-stat-grid" style="grid-template-columns:repeat(3,1fr)">
+        <div class="report-stat"><div class="report-stat-val">${totalH}<span class="report-stat-unit">h</span></div><div class="report-stat-lbl">총 투입 시간</div></div>
+        <div class="report-stat"><div class="report-stat-val">${mm}<span class="report-stat-unit">M/M</span></div><div class="report-stat-lbl">M/M 소진</div></div>
+        <div class="report-stat"><div class="report-stat-val">${workLogs.length}<span class="report-stat-unit">일</span></div><div class="report-stat-lbl">출근 일수</div></div>
+        <div class="report-stat"><div class="report-stat-val">${totalOT}<span class="report-stat-unit">h</span></div><div class="report-stat-lbl">야근 시간</div></div>
+        <div class="report-stat"><div class="report-stat-val">${leaveFull}<span class="report-stat-unit">일</span></div><div class="report-stat-lbl">연차</div></div>
+        <div class="report-stat"><div class="report-stat-val">${leaveHalf}<span class="report-stat-unit">회</span></div><div class="report-stat-lbl">반차</div></div>
+      </div>
+      <div style="margin-top:16px;font-size:12px;font-weight:700;color:var(--text-2);margin-bottom:8px">프로젝트별 투입</div>
+      ${projBars}`;
+  } catch(e) { container.innerHTML = `<div class="error-msg">조회 실패: ${e.message}</div>`; }
+}
+
+// 해당 월의 주차 목록 (월요일 기준)
+function getMonthWeeks(ym) {
+  const [y,m] = ym.split('-').map(Number);
+  const weeks = [];
+  let d = new Date(y, m-1, 1);
+  // 첫번째 월요일 찾기
+  while (d.getDay() !== 1) d.setDate(d.getDate()+1);
+  while (d.getMonth() === m-1 || (d.getMonth() === (m%12) && d.getDate() <= 7)) {
+    const ws = d.toISOString().split('T')[0];
+    // 해당 주의 금요일이 해당 월에 포함되는지 확인
+    const fri = new Date(d); fri.setDate(fri.getDate()+4);
+    if (fri.getMonth() === m-1 || d.getMonth() === m-1) weeks.push(ws);
+    d.setDate(d.getDate()+7);
+    if (d.getMonth() > m-1 && d.getFullYear() >= y) break;
+  }
+  return weeks;
+}
 let _wkViewDate   = null;
 let _wkTab        = 'plan';
 let _wkPlanItems  = [];
@@ -4524,6 +4919,8 @@ function onSaveIdChange() {
 window.addEventListener('DOMContentLoaded', () => {
   const dm = $('dash-month');
   if (dm) dm.value = monthStr();
+  const rm = $('report-month');
+  if (rm) rm.value = monthStr();
 
   // 버전 표시
   document.querySelectorAll('#ver-badge, #login-ver, #dev-ver').forEach(el => {
