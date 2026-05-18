@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Kaon-PEMS v1.3.7</title>
+<title>Kaon-PEMS v1.3.8</title>
 
 <!-- Firebase SDK (v9 compat) -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -1477,7 +1477,7 @@ select.form-control { cursor: pointer; }
 // ============================================================
 // 버전 관리  x.x.x = 메이저.마이너.패치
 // ============================================================
-const APP_VERSION = 'v1.3.7';
+const APP_VERSION = 'v1.3.8';
 
 const CHANGELOG = [
   {
@@ -2818,6 +2818,9 @@ async function buildMMCard() {
 }
 
 function renderDailyUI(existing=null, mmHTML='') {
+  // 반차/연차 여부에 따라 baseHours 항상 재설정 (버그 방지)
+  baseHours = (currentWorkType==='leave_am'||currentWorkType==='leave_pm') ? HALF_HOURS : WORK_HOURS;
+
   const entries = existing?.entries||[];
   const ot      = existing?.overtime||{exists:false};
   const wt      = currentWorkType;
@@ -2831,7 +2834,10 @@ function renderDailyUI(existing=null, mmHTML='') {
         <div style="font-size:48px;margin-bottom:14px">🏖️</div>
         <div class="page-title">연차 처리</div>
         <div class="text-muted mt-8">오늘은 연차입니다.</div>
-        <button class="btn btn-primary mt-16" onclick="submitLeave()">연차 저장</button>
+        <div style="display:flex;gap:10px;justify-content:center;margin-top:20px">
+          <button class="btn btn-secondary" style="min-width:100px" onclick="cancelLeave()">취소</button>
+          <button class="btn btn-primary"   style="min-width:100px" onclick="submitLeave()">연차 저장</button>
+        </div>
       </div></div>`;
     return;
   }
@@ -3039,8 +3045,14 @@ function renderDailyUI(existing=null, mmHTML='') {
 function setWorkType(wt) {
   currentWorkType = wt;
   baseHours = (wt==='leave_am'||wt==='leave_pm') ? HALF_HOURS : WORK_HOURS;
-  // 대기 단일 유형 클릭 시 첫번째로 이동
   if (wt === 'standby_wait' && !wt.startsWith('standby_')) currentWorkType = 'standby_wait';
+  renderDailyUI(_currentExisting);
+}
+
+// 연차 취소 → 직전 화면(일반 근무)으로 복귀
+function cancelLeave() {
+  currentWorkType = 'normal';
+  baseHours = WORK_HOURS;
   renderDailyUI(_currentExisting);
 }
 function toggleEtcMemo() {
@@ -3101,6 +3113,9 @@ function proportionalAdjust() {
 }
 
 function calcPctTotal() {
+  // baseHours 안전 재확인 (반차 시 4시간 기준 보장)
+  baseHours = (currentWorkType==='leave_am'||currentWorkType==='leave_pm') ? HALF_HOURS : WORK_HOURS;
+
   const inputs = [...document.querySelectorAll('.daily-pct')];
   let total = 0;
   inputs.forEach(inp => {
