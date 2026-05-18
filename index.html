@@ -2828,15 +2828,22 @@ function renderDailyUI(existing=null, mmHTML='') {
 
   // 연차
   if (wt==='leave_full') {
+    // 연차는 배너가 의미 없으므로 숨김
+    hide('di-submitted-banner');
+    const alreadyLeave = isAlreadySubmitted && existing?.status === 'leave_full';
     $('di-content').innerHTML = `
       ${mmHTML}
       <div class="card"><div class="card-body" style="text-align:center;padding:48px">
         <div style="font-size:48px;margin-bottom:14px">🏖️</div>
         <div class="page-title">연차 처리</div>
-        <div class="text-muted mt-8">오늘은 연차입니다.</div>
+        <div class="text-muted mt-8">
+          ${alreadyLeave ? '이미 연차로 제출된 날짜입니다.' : '오늘을 연차로 처리합니다.'}
+        </div>
         <div style="display:flex;gap:10px;justify-content:center;margin-top:20px">
-          <button class="btn btn-secondary" style="min-width:100px" onclick="cancelLeave()">취소</button>
-          <button class="btn btn-primary"   style="min-width:100px" onclick="submitLeave()">연차 저장</button>
+          <button class="btn btn-secondary" style="min-width:100px" onclick="cancelLeave()">← 취소</button>
+          <button class="btn btn-primary"   style="min-width:100px" onclick="submitLeave()">
+            ${alreadyLeave ? '🔄 재제출' : '✅ 연차 저장'}
+          </button>
         </div>
       </div></div>`;
     return;
