@@ -1925,7 +1925,7 @@ auth.onAuthStateChanged(async user => {
     }
   } catch(e) {
     console.error('초기화 오류:', e);
-    toast('초기화 중 오류: ' + e.message, 'error');
+    toast(fmtErr(e),'error');
     showLogin();
   }
   showLoad(false);
@@ -2263,7 +2263,7 @@ async function saveCompany() {
     await loadAll(); renderCompanies();
     closeModal('modal-company');
     toast(id ? '기업이 수정되었습니다.' : '기업이 추가되었습니다.');
-  } catch(e) { toast('저장 실패: '+e.message,'error'); }
+  } catch(e) { toast(fmtErr(e),'error'); }
   showLoad(false);
 }
 async function deleteCompany(id, name) {
@@ -2396,7 +2396,7 @@ async function saveProject() {
     await loadAll(); renderProjects(); updateProjFilter();
     closeModal('modal-project');
     toast(id ? '프로젝트가 수정되었습니다.' : '프로젝트가 추가되었습니다.');
-  } catch(e) { toast('저장 실패: '+e.message,'error'); }
+  } catch(e) { toast(fmtErr(e),'error'); }
   showLoad(false);
 }
 async function deleteProject(id, name) {
@@ -2687,7 +2687,7 @@ async function loadDashboard() {
     renderDashProjects(logs);
     renderDashDevs(logs, workdays);
   } catch(e) {
-    toast('대시보드 로드 실패: '+e.message,'error');
+    toast(fmtErr(e),'error');
   }
   showLoad(false);
 }
@@ -3502,6 +3502,16 @@ function minsToHM(mins) {
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
 
+// Firebase 에러 메시지 변환
+function fmtErr(e) {
+  if (!e) return '알 수 없는 오류';
+  if (e.code === 'permission-denied')  return '권한이 없습니다.';
+  if (e.code === 'not-found')          return '데이터를 찾을 수 없습니다.';
+  if (e.code === 'unavailable')        return '서버에 연결할 수 없습니다.';
+  if (e.code === 'unauthenticated')    return '로그인이 필요합니다.';
+  return e.message || '오류가 발생했습니다.';
+}
+
 function toggleOT() {
   const checked = $('ot-check').checked;
   tog('ot-section', checked);
@@ -3565,7 +3575,7 @@ async function submitLeave() {
     show('di-submitted-banner');
     toast('연차 처리되었습니다. 🏖️');
     await loadDailyInput();
-  } catch(e) { toast('실패: '+e.message,'error'); }
+  } catch(e) { toast(fmtErr(e),'error'); }
   showLoad(false);
 }
 
@@ -3582,7 +3592,7 @@ async function submitStandby() {
     const t = STANDBY_TYPES.find(s=>s.v===currentWorkType);
     toast(`${t?.icon||''} ${t?.l||'대기'} 상태로 저장되었습니다.`);
     await loadDailyInput();
-  } catch(e) { toast('저장 실패: '+e.message,'error'); }
+  } catch(e) { toast(fmtErr(e),'error'); }
   showLoad(false);
 }
 
@@ -3628,7 +3638,7 @@ async function submitDaily() {
     const btn=$('submit-btn');
     if(btn){btn.textContent='수정하기';btn.disabled=false;}
     toast('업무가 제출되었습니다. ✅');
-  } catch(e) { toast('제출 실패: '+e.message,'error'); }
+  } catch(e) { toast(fmtErr(e),'error'); }
   showLoad(false);
 }
 
@@ -3665,7 +3675,7 @@ async function loadHistory() {
       const otText = log.overtime?.exists ? `<span class="text-warning"> +야근${log.overtime.hours}h</span>` : '';
       return `<tr><td>${disp}</td><td>${lbl}</td><td><span class="badge ${leaveLbl?'badge-warning':'badge-success'}">${leaveLbl?`🌗 ${leaveLbl}`:'✅ 완료'}</span></td><td style="font-size:12px">${detail}${otText}</td></tr>`;
     }).join('');
-  } catch(e) { toast('조회 실패: '+e.message,'error'); }
+  } catch(e) { toast(fmtErr(e),'error'); }
   showLoad(false);
 }
 
@@ -3746,7 +3756,7 @@ async function saveAutoFillItem() {
     // 오늘 날짜에 자동 적용 안내
     const t=today();
     if(t>=start&&t<=end) toast('오늘 날짜에 자동 적용됩니다.','info');
-  } catch(e) { myAutoFillSettings.pop(); toast('저장 실패: '+e.message,'error'); }
+  } catch(e) { myAutoFillSettings.pop(); toast(fmtErr(e),'error'); }
   showLoad(false);
 }
 
@@ -3769,7 +3779,7 @@ async function loadMembers() {
   try {
     await loadAll(); // _allUsers 갱신
     renderDevelopers();
-  } catch(e) { toast('조회 실패: '+e.message,'error'); }
+  } catch(e) { toast(fmtErr(e),'error'); }
   showLoad(false);
 }
 
@@ -3827,7 +3837,7 @@ async function approveUser(uid, name) {
     await db.collection('users').doc(uid).update({ status:'approved' });
     await loadAll(); renderDevelopers();
     toast(`✅ ${name}님을 승인했습니다.`);
-  } catch(e) { toast('실패: '+e.message,'error'); }
+  } catch(e) { toast(fmtErr(e),'error'); }
   showLoad(false);
 }
 async function rejectUser(uid, name) {
@@ -3883,7 +3893,7 @@ async function savePermissions() {
     await loadAll();
     renderDevelopers();
     toast('권한이 저장되었습니다.');
-  } catch(e) { toast('저장 실패: '+e.message,'error'); }
+  } catch(e) { toast(fmtErr(e),'error'); }
   showLoad(false);
 }
 
@@ -3893,7 +3903,7 @@ async function resetDevPasswordByEmail(email, name) {
     try {
       await auth.sendPasswordResetEmail(email);
       toast(`✉️ ${name}님에게 재설정 이메일이 발송되었습니다.`);
-    } catch(e) { toast('발송 실패: '+e.message,'error'); }
+    } catch(e) { toast(fmtErr(e),'error'); }
     showLoad(false);
   });
 }
@@ -4476,7 +4486,7 @@ async function wkLoadPrev() {
     if (!_wkPlanItems.length) _wkPlanItems=[newPlanItem()];
     const r=$('wk-plan-rows'); if(r) r.innerHTML=_wkPlanItems.map(wkPlanRowHTML).join('');
     toast(`지난주 계획 ${newItems.length}건을 불러왔습니다.`);
-  } catch(e) { toast('불러오기 실패: '+e.message,'error'); }
+  } catch(e) { toast(fmtErr(e),'error'); }
   showLoad(false);
 }
 
@@ -4494,7 +4504,7 @@ async function saveWkPlan(status) {
     },{merge:true});
     toast(status==='submitted'?'계획이 제출되었습니다! ✅':'임시저장되었습니다.');
     renderWkPlan(ws).then(()=>renderWkPlanUI(status));
-  } catch(e) { toast('저장 실패: '+e.message,'error'); }
+  } catch(e) { toast(fmtErr(e),'error'); }
   showLoad(false);
 }
 
@@ -4639,7 +4649,7 @@ async function saveWkReport(status) {
     },{merge:true});
     toast(status==='submitted'?'결과가 제출되었습니다! ✅':'임시저장되었습니다.');
     renderWkResult(ws).then(()=>renderWkResultUI(status));
-  } catch(e){ toast('저장 실패: '+e.message,'error'); }
+  } catch(e){ toast(fmtErr(e),'error'); }
   showLoad(false);
 }
 
@@ -4826,7 +4836,7 @@ async function loadWorkLogs() {
         <td style="font-size:12px;color:var(--text-3)">${submittedAt}</td>
       </tr>`;
     }).join('');
-  } catch(e) { toast('조회 실패: '+e.message,'error'); }
+  } catch(e) { toast(fmtErr(e),'error'); }
   showLoad(false);
 }
 
@@ -4892,7 +4902,7 @@ async function loadProductivity() {
         <td><span class="badge ${cls}">${ach>=80?'정상':ach>=50?'주의':'저조'}</span></td>
       </tr>`;
     }).join('');
-  } catch(e) { toast('조회 실패: '+e.message,'error'); }
+  } catch(e) { toast(fmtErr(e),'error'); }
   showLoad(false);
 }
 
