@@ -2950,26 +2950,31 @@ async function loadDailyInput() {
   }
 
   showLoad(true);
-  const logId  = `${currentUser.uid}_${dateStr}`;
-  const logDoc = await db.collection('dailyLogs').doc(logId).get();
-  let existing = logDoc.exists ? logDoc.data() : null;
+  try {
+    const logId  = `${currentUser.uid}_${dateStr}`;
+    const logDoc = await db.collection('dailyLogs').doc(logId).get();
+    let existing = logDoc.exists ? logDoc.data() : null;
 
-  // 미제출 + 자동완성 적용
-  if (!existing) {
-    const af = checkAutoFill(dateStr);
-    if (af) existing = {status:'normal', entries:af, overtime:{exists:false}, _auto:true};
+    if (!existing) {
+      const af = checkAutoFill(dateStr);
+      if (af) existing = {status:'normal', entries:af, overtime:{exists:false}, _auto:true};
+    }
+
+    if (logDoc.exists) show('di-submitted-banner');
+    _currentExisting = existing;
+
+    currentWorkType = existing?.status||'normal';
+    baseHours = (currentWorkType==='leave_am'||currentWorkType==='leave_pm') ? HALF_HOURS : WORK_HOURS;
+
+    const mmHTML = await buildMMCard();
+    showLoad(false);
+    renderDailyUI(existing, mmHTML);
+  } catch(e) {
+    showLoad(false);
+    $('di-content').innerHTML = `<div class="info-notice" style="color:var(--danger)">
+      ⚠️ 업무 입력을 불러오지 못했습니다: ${fmtErr(e)}
+    </div>`;
   }
-
-  if (logDoc.exists) show('di-submitted-banner');
-  _currentExisting = existing;
-
-  currentWorkType = existing?.status||'normal';
-  baseHours = (currentWorkType==='leave_am'||currentWorkType==='leave_pm') ? HALF_HOURS : WORK_HOURS;
-
-  // M/M 정보 카드 생성
-  const mmHTML = await buildMMCard();
-  showLoad(false);
-  renderDailyUI(existing, mmHTML);
 }
 
 async function buildMMCard() {
