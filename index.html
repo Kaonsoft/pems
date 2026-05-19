@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Kaon-PEMS v1.4.1</title>
+<title>Kaon-PEMS v1.4.2</title>
 
 <!-- Firebase SDK (v9 compat) -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -321,8 +321,11 @@ tr:hover td { background: #FAFBFC; }
 .weekly-section-title { font-size:11px;font-weight:700;color:var(--text-2);text-transform:uppercase;letter-spacing:.05em;margin:14px 0 8px;padding-bottom:6px;border-bottom:1px solid var(--border); }
 .weekly-col-hdr { display:flex;align-items:center;gap:8px;padding:0 0 6px;margin-bottom:2px; }
 .weekly-col-hdr span { font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em; }
-.weekly-admin-row { display:flex;align-items:center;padding:12px 16px;border-bottom:1px solid #F8FAFC;gap:12px;cursor:pointer;transition:background .12s; }
-.weekly-admin-row:hover { background:#FAFBFC; }
+.wdue { padding:6px 8px;border:1.5px solid var(--border);border-radius:7px;font-size:12px;width:130px;background:white; }
+.wdue:focus { outline:none;border-color:var(--warning); }
+.due-label { font-size:11px;color:var(--text-3);white-space:nowrap;flex-shrink:0; }
+.due-label.overdue { color:var(--danger);font-weight:700; }
+.due-label.soon { color:var(--warning);font-weight:700; }
 
 /* 결과 행 2줄 구조 */
 .wrr { padding:12px 0;border-bottom:1px solid #F8FAFC; }
@@ -1576,7 +1579,7 @@ select.form-control { cursor: pointer; }
 // ============================================================
 // 버전 관리  x.x.x = 메이저.마이너.패치
 // ============================================================
-const APP_VERSION = 'v1.4.1';
+const APP_VERSION = 'v1.4.2';
 
 const CHANGELOG = [
   {
@@ -2875,9 +2878,16 @@ async function initMember(userData) {
     myAutoFillSettings = af.exists ? (af.data().settings||[]) : [];
   } catch { myAutoFillSettings = []; }
 
-  // 관리 메뉴 권한 있으면 데이터 로드
+  // 관리 메뉴 권한 있으면 전체 데이터 로드
+  // 없어도 나의 현황/리포트/위클리를 위해 프로젝트 목록은 항상 필요
   const hasAnyPerm = Object.values(perms).some(p => p !== 'none');
-  if (hasAnyPerm) await loadAll();
+  if (hasAnyPerm) {
+    await loadAll();
+  } else {
+    allProjects  = myProjects; // 프로젝트명 조회용
+    allCompanies = [];
+    allDevs      = [];
+  }
 
   $('di-date').value    = today();
   $('hist-month').value = monthStr();
@@ -4341,10 +4351,11 @@ function wkId() { return Date.now().toString(36)+Math.random().toString(36).subs
 function newPlanItem(from=null) {
   return {
     id: wkId(),
-    projectId: from?.projectId||'',
+    projectId:   from?.projectId||'',
     projectName: from?.projectName||'',
-    task: from?.task||'',
-    priority: from?.priority||'medium',
+    task:        from?.task||'',
+    priority:    from?.priority||'medium',
+    dueDate:     from?.dueDate||'',
     repeatCount: from ? (from.repeatCount||0)+1 : 0,
   };
 }
@@ -4451,6 +4462,8 @@ function wkPlanRowHTML(item) {
     </select>
     <input class="wtask" type="text" value="${escHtml(item.task||'')}" placeholder="업무 내용 입력"
       oninput="updWkPlan('${item.id}','task',this.value)">
+    <input type="date" class="wdue" value="${item.dueDate||''}"
+      title="마감일" onchange="updWkPlan('${item.id}','dueDate',this.value)">
     ${repeatBadge}
     <button class="wdel-btn" onclick="delWkPlan('${item.id}')">✕</button>
   </div>`;
@@ -4579,11 +4592,21 @@ function wkResultRowHTML(item) {
   const plLbl={high:'🔴 높음',medium:'🟡 중간',low:'🟢 낮음'}[item.priority]||'중간';
   const rb = item.repeatCount>=2?`<span class="repeat-badge">🔄 ${item.repeatCount}주 반복</span>`:
              item.repeatCount===1?`<span class="carry-badge">↩ 이월</span>`:'';
+
+  // 마감일 표시
+  let dueHtml = '';
+  if (item.dueDate) {
+    const t = today();
+    const dueClass = item.dueDate < t ? 'overdue' : item.dueDate <= getNextWS(t) ? 'soon' : '';
+    const dueIcon  = item.dueDate < t ? '🚨' : item.dueDate <= getNextWS(t) ? '⏰' : '📅';
+    dueHtml = `<span class="due-label ${dueClass}">${dueIcon} ~ ${fmtDate(item.dueDate)}</span>`;
+  }
+
   return `<div class="wrr">
     <div class="wrr-top">
       <span class="priority-label ${plCls}" style="flex-shrink:0">${plLbl}</span>
       <span class="wrr-proj">${escHtml(item.projectName||'-')}</span>
-      <span class="wrr-task">${escHtml(item.task||'-')} ${rb}</span>
+      <span class="wrr-task">${escHtml(item.task||'-')} ${dueHtml} ${rb}</span>
     </div>
     <div class="wrr-bot">
       <select class="wstatus" style="flex-shrink:0" onchange="updWkResult('${item.id}','status',this.value)">
@@ -4731,6 +4754,7 @@ async function viewMemberWk(uid, name, ws) {
       <td style="padding:8px 6px"><span class="priority-label ${plCls}" style="width:auto;padding:2px 6px">${{high:'🔴 높음',medium:'🟡 중간',low:'🟢 낮음'}[pi.priority]||'-'}</span></td>
       <td style="padding:8px 6px;font-size:12px;color:var(--text-2)">${escHtml(pi.projectName||'-')}</td>
       <td style="padding:8px 6px;font-size:13px">${escHtml(pi.task)}${rb}</td>
+      <td style="padding:8px 6px;font-size:11px;color:var(--text-3)">${pi.dueDate?fmtDate(pi.dueDate):'-'}</td>
       <td style="padding:8px 6px">${res?stLbl[res.status]||'미입력':'<span class="text-muted">미입력</span>'}</td>
       <td style="padding:8px 6px;font-size:12px;color:var(--text-3)">${escHtml(res?.memo||'-')}</td>
     </tr>`;
@@ -4751,7 +4775,8 @@ async function viewMemberWk(uid, name, ws) {
     <table style="width:100%;border-collapse:collapse">
       <thead><tr>
         <th style="${thStyle}">우선순위</th><th style="${thStyle}">프로젝트</th>
-        <th style="${thStyle}">업무 내용</th><th style="${thStyle}">결과</th><th style="${thStyle}">메모</th>
+        <th style="${thStyle}">업무 내용</th><th style="${thStyle}">마감일</th>
+        <th style="${thStyle}">결과</th><th style="${thStyle}">메모</th>
       </tr></thead>
       <tbody>${planTbody}</tbody>
     </table>
