@@ -275,13 +275,12 @@ tr:hover td { background: #FAFBFC; }
 .badge-invest { background:#EDE9FE;color:#6D28D9;font-size:11px;padding:2px 8px;border-radius:4px;font-weight:700; }
 
 /* ── 업무 이력 일별 뷰 ── */
-.wl-day-row { border-bottom:1px solid #F1F5F9;transition:background .12s; }
+.wl-day-row { border-bottom:1px solid #F1F5F9; }
 .wl-day-row:last-child { border-bottom:none; }
 .wl-day-summary { display:flex;align-items:center;gap:12px;padding:14px 18px;cursor:pointer; }
 .wl-day-summary:hover { background:#FAFBFC; }
 .wl-dev-name { width:90px;font-size:14px;font-weight:700;flex-shrink:0; }
 .wl-proj-summary { flex:1;font-size:12px;color:var(--text-2); }
-.wl-status-badge { flex-shrink:0; }
 .wl-expand-btn { width:28px;height:28px;border:none;background:none;color:var(--text-3);cursor:pointer;font-size:14px;flex-shrink:0;border-radius:6px;transition:all .12s; }
 .wl-expand-btn:hover { background:#F1F5F9; }
 .wl-detail { display:none;padding:0 18px 16px 120px;background:#FAFBFC; }
@@ -293,10 +292,10 @@ tr:hover td { background: #FAFBFC; }
 .wl-time { width:60px;text-align:right;font-size:11px;color:var(--text-3); }
 .wl-memo-text { font-size:12px;color:var(--text-2);font-style:italic;padding:6px 0;border-top:1px dashed #E2E8F0;margin-top:4px; }
 .wl-ot-info { display:flex;align-items:center;gap:6px;padding:6px 0;border-top:1px dashed #E2E8F0;margin-top:4px;font-size:12px; }
-.wl-day-nav { display:flex;align-items:center;gap:12px;margin-bottom:16px; }
-.wl-date-label { font-size:16px;font-weight:700;min-width:160px;text-align:center; }
 .wl-team-summary { display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap; }
 .wl-team-stat { display:flex;align-items:center;gap:6px;font-size:13px; }
+
+/* ── 생산성 리포트 ── */
 .report-stat-grid { display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px; }
 .report-stat { background:white;border:1.5px solid var(--border);border-radius:12px;padding:16px;text-align:center; }
 .report-stat-val { font-size:28px;font-weight:800;color:var(--primary-light);line-height:1; }
@@ -1098,16 +1097,14 @@ select.form-control { cursor: pointer; }
           <div class="page-title">📋 업무 이력</div>
           <div class="page-subtitle" id="wl-subtitle"></div>
         </div>
-        <div class="wl-day-nav">
+        <div style="display:flex;align-items:center;gap:8px">
           <button class="btn btn-secondary btn-xs" onclick="wlNavPrev()">← 전날</button>
           <input type="date" id="wl-date" class="form-control" style="width:auto" onchange="loadWorkLogs()">
           <button class="btn btn-secondary btn-xs" onclick="wlNavNext()">다음날 →</button>
         </div>
       </div>
       <div id="wl-team-summary" class="wl-team-summary"></div>
-      <div class="card">
-        <div id="wl-list" style="padding:0"></div>
-      </div>
+      <div class="card"><div id="wl-list" style="padding:0"></div></div>
     </div>
 
     <!-- ─── 업데이트 이력 ─── -->
@@ -1598,15 +1595,61 @@ const APP_VERSION = 'v1.4.3';
 
 const CHANGELOG = [
   {
+    version: 'v1.4.3',
+    date: '2026-05-20',
+    type: 'minor',
+    label: '기능 개선',
+    items: [
+      '업무 이력 전면 개편 — 날짜별 팀 전체 현황 한눈에 보기',
+      '기본 날짜: 어제 (출근 시 전날 즉시 확인)',
+      '팀 요약: 제출/휴가/미제출 인원 수 표시',
+      '행 클릭 → 프로젝트별 바 차트 + 시간 + 기타메모 + 야근 상세',
+      '전날/다음날 버튼으로 빠른 날짜 이동',
+    ]
+  },
+  {
+    version: 'v1.4.2',
+    date: '2026-05-20',
+    type: 'patch',
+    label: '패치',
+    items: [
+      '위클리 계획 마감일(Due Date) 추가 — 초과/임박/여유 색상 구분',
+      '나의 현황/생산성 리포트/위클리 보고 — 권한 없는 멤버도 기본 접근',
+    ]
+  },
+  {
+    version: 'v1.4.1',
+    date: '2026-05-20',
+    type: 'patch',
+    label: '패치',
+    items: [
+      '제출 버튼 활성화 버그 수정 (100% 달성 시 즉시 활성화)',
+      '생산성 리포트 추가 — 개인 현황 + 팀 현황 (관리자)',
+      '업무 이력 무한 로딩 버그 수정 (try-catch 추가)',
+      'Firebase 에러 메시지 한국어 변환 ("권한이 없습니다." 등)',
+    ]
+  },
+  {
+    version: 'v1.4.0',
+    date: '2026-05-19',
+    type: 'minor',
+    label: '기능 추가',
+    items: [
+      '위클리 업무 보고 기능 추가 (계획/결과/팀현황)',
+      '지난주 불러오기 → 반복 업무 횟수 자동 추적',
+      '반복 배지: 🔄 N주 반복 / ↩ 이월',
+      '관리자 팀 현황 — 팀원 클릭 시 상세 보고서 조회',
+    ]
+  },
+  {
     version: 'v1.3.8',
     date: '2026-05-18',
     type: 'patch',
     label: '패치',
     items: [
-      '반차 선택 시 기준 시간 4시간으로 정확히 반영 (3중 안전장치)',
-      '연차 화면 취소 버튼 추가 — 클릭 시 일반 근무 입력으로 복귀',
-      '연차 재방문 시 "재제출" 버튼으로 표시 변경',
-      '연차 화면에서 "수정 후 재제출" 배너 숨김 처리',
+      '반차 4시간 기준 3중 안전장치',
+      '연차 화면 취소/재제출 버튼 추가',
+      '업데이트 이력 전체 복구',
     ]
   },
   {
@@ -1615,10 +1658,8 @@ const CHANGELOG = [
     type: 'patch',
     label: '패치',
     items: [
-      '프로젝트 생성 시 투자사업(자체 R&D) 체크박스 추가',
-      '투자사업 선택 시 예산 0원 고정, 인건비 투자액 자동 산출 안내',
-      '프로젝트 목록에 투자사업 배지 표시',
-      '프로젝트 추가 시 기업 목록 가나다/ABC 순 정렬',
+      '투자사업(자체 R&D) 체크박스 — 예산 0원, 인건비 추적',
+      '프로젝트 추가 시 기업 목록 가나다/ABC 정렬',
     ]
   },
   {
@@ -1627,14 +1668,9 @@ const CHANGELOG = [
     type: 'minor',
     label: '기능 개선',
     items: [
-      '업무 입력 방식 C안으로 전면 개편 — % 입력 → 시간 자동계산',
-      '퀵버튼 추가: 10% 20% 25% 50% 100% 원클릭 선택',
-      '나머지 채우기 버튼 — 100%에서 다른 항목 합계를 뺀 값 자동 입력',
-      '비례조정 버튼 — 현재 비율 유지하며 합계 100%로 재배분',
-      '야근도 동일하게 % 입력 + 시간 자동계산 방식 적용',
-      '야근 비용 표시 삭제',
-      '스피너 화살표 제거 — 실수 클릭으로 자동 채워지는 버그 수정',
-      'autoFillLast를 onblur(입력 완료)로 이동 — 타이핑 중 자동 채움 방지',
+      '업무 입력 C안 개편 — % 입력 → 시간 자동계산',
+      '퀵버튼(10/20/25/50/100%), 나머지 채우기, 비례조정',
+      '야근도 동일하게 적용, 야근 비용 표시 삭제',
     ]
   },
   {
@@ -1642,31 +1678,21 @@ const CHANGELOG = [
     date: '2026-05-14',
     type: 'patch',
     label: '패치',
-    items: [
-      '미입력 현황 계산 기준 수정 — 개발자 가입일 이후 + 오늘 이전 날짜만 체크',
-      'toDateStr 미정의 오류 수정',
-    ]
+    items: ['미입력 현황 — 가입일 이후 + 오늘 이전 날짜만 체크']
   },
   {
     version: 'v1.3.4',
     date: '2026-05-14',
     type: 'patch',
     label: '패치',
-    items: [
-      '권한설정 모달 z-index 수정 — 개발자 상세 모달 뒤에 가려지는 버그 수정',
-      'savePermissions 후 인덱스 오류 수정 (loadMembers → loadAll + renderDevelopers)',
-      '권한 저장 후 두 모달 모두 닫고 목록 새로고침',
-    ]
+    items: ['권한 모달 z-index, savePermissions 인덱스 오류 수정']
   },
   {
     version: 'v1.3.3',
     date: '2026-05-14',
     type: 'patch',
     label: '패치',
-    items: [
-      '사이드바 사용자 정보 클릭 → 프로필 수정 모달',
-      '수정 가능: 이름, 담당업무 / 수정 불가: 이메일',
-    ]
+    items: ['사이드바 클릭 → 프로필 수정 (이름/담당업무)']
   },
   {
     version: 'v1.3.2',
@@ -1674,11 +1700,9 @@ const CHANGELOG = [
     type: 'minor',
     label: '기능 개선',
     items: [
-      '모든 사용자 관리자 레이아웃 사용 — 동적 사이드바 생성',
-      '관리자(대표님)도 업무입력/나의현황 사용 가능',
-      '권한 있는 멤버 — 허가된 메뉴 + 내 업무 섹션',
-      '권한 없는 멤버 — 내 업무만 표시',
-      '읽기 권한 — 수정/삭제 버튼 "읽기전용" 배지로 대체',
+      '모든 사용자 관리자 레이아웃, 동적 사이드바',
+      '관리자도 업무입력/나의현황 사용 가능',
+      '읽기 권한 → 버튼 비활성화',
     ]
   },
   {
@@ -1686,12 +1710,7 @@ const CHANGELOG = [
     date: '2026-05-14',
     type: 'patch',
     label: '패치',
-    items: [
-      '회원 관리를 "개발자/회원 관리"로 통합',
-      '상태 탭: 전체 / 승인 대기 / 승인 완료 / 거절',
-      '카드 클릭 → 상태별 버튼 (승인/거절/권한설정/비번초기화)',
-      'Firestore 인덱스 오류 수정 (orderBy 제거, 클라이언트 정렬)',
-    ]
+    items: ['개발자/회원관리 통합, Firestore 인덱스 오류 수정']
   },
   {
     version: 'v1.3.0',
@@ -1699,9 +1718,7 @@ const CHANGELOG = [
     type: 'minor',
     label: '기능 추가',
     items: [
-      '회원 직접 가입 기능 추가 (이름/이메일/비번/담당업무)',
-      '담당업무: PM, 기획자, 디자이너, 퍼블리셔, 개발자, QA, 경영지원',
-      '가입 후 관리자 승인 대기 → 승인 후 서비스 이용',
+      '회원 직접 가입, 관리자 승인 대기',
       '메뉴별 권한: 없음 / 읽기 / 읽기+쓰기',
     ]
   },
@@ -1710,45 +1727,14 @@ const CHANGELOG = [
     date: '2026-05-14',
     type: 'patch',
     label: '패치',
-    items: [
-      '"아이디 저장" / "로그인 유지" 체크박스 추가',
-      '체크박스 선택값 저장 — 다음 방문 시 설정 유지',
-    ]
-  },
-  {
-    version: 'v1.2.4',
-    date: '2026-05-14',
-    type: 'patch',
-    label: '패치',
-    items: ['로그인 이메일 자동 저장 (v1.2.5에서 선택형으로 개선)']
-  },
-  {
-    version: 'v1.2.3',
-    date: '2026-05-14',
-    type: 'patch',
-    label: '패치',
-    items: ['"비밀번호를 잊으셨나요?" 추가, 개발자 카드 클릭 버그 수정']
-  },
-  {
-    version: 'v1.2.2',
-    date: '2026-05-14',
-    type: 'patch',
-    label: '패치',
-    items: ['개발자 상세 모달, 비밀번호 재설정 이메일 발송']
-  },
-  {
-    version: 'v1.2.1',
-    date: '2026-05-14',
-    type: 'patch',
-    label: '패치',
-    items: ['시간/분 직접 입력 — 시간 ↔ % 양방향 자동계산']
+    items: ['"아이디 저장" / "로그인 유지" 체크박스']
   },
   {
     version: 'v1.2.0',
     date: '2026-05-14',
     type: 'minor',
     label: '기능 개선',
-    items: ['즐겨찾기, 정렬, 기타메모, 자동완성, 대기상태, M/M 21일']
+    items: ['즐겨찾기, 기타메모, 자동완성, 대기상태, M/M 21일']
   },
   {
     version: 'v1.1.0',
@@ -4828,7 +4814,6 @@ function renderChangelog(containerId) {
 async function loadWorkLogs() {
   const dateEl = $('wl-date');
   if (!dateEl.value) {
-    // 기본값: 어제
     const y = new Date(); y.setDate(y.getDate()-1);
     dateEl.value = y.toISOString().split('T')[0];
   }
@@ -4839,14 +4824,12 @@ async function loadWorkLogs() {
 
   showLoad(true);
   try {
-    // 해당 날짜 전체 로그 조회 (단일 필드 쿼리)
     const snap = await db.collection('dailyLogs').where('date','==',dateStr).get();
     const logs  = snap.docs.map(d=>({id:d.id,...d.data()}));
 
-    // 팀 현황 요약
-    const submitted  = allDevs.filter(d => logs.find(l=>l.uid===d.id && l.status==='submitted'));
-    const leaveDevs  = allDevs.filter(d => logs.find(l=>l.uid===d.id && (l.status==='leave_full'||l.status==='leave_am'||l.status==='leave_pm')));
-    const missing    = allDevs.filter(d => !logs.find(l=>l.uid===d.id));
+    const submitted = allDevs.filter(dv => logs.find(l=>l.uid===dv.id && l.status==='submitted'));
+    const leaveDevs = allDevs.filter(dv => logs.find(l=>l.uid===dv.id && (l.status==='leave_full'||l.status==='leave_am'||l.status==='leave_pm')));
+    const missing   = allDevs.filter(dv => !logs.find(l=>l.uid===dv.id));
 
     $('wl-team-summary').innerHTML = `
       <div class="wl-team-stat"><span class="badge badge-success">✅ 제출</span><strong>${submitted.length}명</strong></div>
@@ -4861,8 +4844,6 @@ async function loadWorkLogs() {
     $('wl-list').innerHTML = allDevs.map(dev => {
       const log = logs.find(l=>l.uid===dev.id);
       const bh  = (log?.status==='leave_am'||log?.status==='leave_pm') ? HALF_HOURS : WORK_HOURS;
-
-      // 상태 배지
       let statusBadge, summaryText;
       if (!log) {
         statusBadge = `<span class="badge badge-gray">❌ 미제출</span>`;
@@ -4870,112 +4851,91 @@ async function loadWorkLogs() {
       } else if (log.status==='leave_full') {
         statusBadge = `<span class="badge badge-purple">🏖️ 연차</span>`;
         summaryText = `<span class="text-muted">연차 사용</span>`;
-      } else if (log.status==='leave_am'||log.status==='leave_pm') {
-        const lbl = log.status==='leave_am'?'오전 반차':'오후 반차';
-        statusBadge = `<span class="badge badge-warning">${lbl}</span>`;
-        summaryText = wlSummaryText(log, bh, allProjects);
       } else {
-        statusBadge = `<span class="badge badge-success">✅ 제출</span>`;
-        summaryText = wlSummaryText(log, bh, allProjects);
+        const lbl = log.status==='leave_am'?'오전반차':log.status==='leave_pm'?'오후반차':'';
+        statusBadge = lbl
+          ? `<span class="badge badge-warning">${lbl}</span>`
+          : `<span class="badge badge-success">✅ 제출</span>`;
+        summaryText = wlSummaryText(log, bh);
       }
-
-      // 상세 내용
-      const detail = log ? wlDetailHTML(log, bh, allProjects) : '';
-
+      const detail = log ? wlDetailHTML(log, bh) : '';
       return `<div class="wl-day-row">
-        <div class="wl-day-summary" onclick="wlToggle('wld-${dev.id}', this)">
+        <div class="wl-day-summary" onclick="wlToggle('wld-${dev.id}',this)">
           <div class="wl-dev-name">${escHtml(dev.name)}</div>
           <div class="wl-proj-summary">${summaryText}</div>
-          <div class="wl-status-badge">${statusBadge}</div>
-          ${detail ? `<button class="wl-expand-btn" title="상세 보기">▼</button>` : '<span style="width:28px"></span>'}
+          <div>${statusBadge}</div>
+          ${detail?`<button class="wl-expand-btn">▼</button>`:'<span style="width:28px"></span>'}
         </div>
-        ${detail ? `<div class="wl-detail" id="wld-${dev.id}">${detail}</div>` : ''}
+        ${detail?`<div class="wl-detail" id="wld-${dev.id}">${detail}</div>`:''}
       </div>`;
     }).join('');
-
   } catch(e) {
-    $('wl-list').innerHTML = `<div class="error-msg" style="margin:16px">${fmtErr(e)}</div>`;
+    $('wl-list').innerHTML=`<div class="error-msg" style="margin:16px">${fmtErr(e)}</div>`;
   }
   showLoad(false);
 }
 
-function wlSummaryText(log, bh, projects) {
-  if (!log?.entries?.length) return '<span class="text-muted">-</span>';
-  return log.entries.map(e => {
-    const name = e.projectId==='etc' ? '기타' : (projects.find(p=>p.id===e.projectId)?.name||e.projectId);
+function wlSummaryText(log, bh) {
+  return (log.entries||[]).map(e => {
+    const name = e.projectId==='etc'?'기타':(allProjects.find(p=>p.id===e.projectId)?.name||e.projectId);
     const mins = Math.round((e.percent||0)*bh*60/100);
-    const h = Math.floor(mins/60), m = mins%60;
-    const timeStr = h>0 ? `${h}h${m?` ${m}m`:''}` : `${m}m`;
-    return `<span style="margin-right:8px"><strong>${escHtml(name)}</strong> ${e.percent}% <span style="color:var(--text-3);font-size:11px">(${timeStr})</span></span>`;
-  }).join('');
+    const h=Math.floor(mins/60), m=mins%60;
+    return `<span style="margin-right:8px"><strong>${escHtml(name)}</strong> ${e.percent}% <span style="color:var(--text-3);font-size:11px">(${h?h+'h':''}${m?` ${m}m`:''})</span></span>`;
+  }).join('') || '<span class="text-muted">-</span>';
 }
 
-function wlDetailHTML(log, bh, projects) {
-  if (!log) return '';
-  let html = '';
-
-  // 프로젝트별 상세
-  if (log.entries?.length) {
-    html += log.entries.map(e => {
-      const name = e.projectId==='etc' ? '🗂 기타' : (projects.find(p=>p.id===e.projectId)?.name||e.projectId);
-      const mins = Math.round((e.percent||0)*bh*60/100);
-      const h = Math.floor(mins/60), m = mins%60;
-      const timeStr = h>0 ? `${h}h${m?` ${m}m`:''}` : `${m}m`;
-      const barW = Math.round(e.percent||0);
-      return `<div class="wl-detail-row">
-        <div class="wl-proj-name">${escHtml(name)}</div>
-        <div style="flex:1;background:#F1F5F9;border-radius:999px;height:6px;overflow:hidden;margin:0 8px">
-          <div style="width:${barW}%;height:100%;background:var(--primary-light);border-radius:999px"></div>
-        </div>
-        <div class="wl-pct">${e.percent}%</div>
-        <div class="wl-time">${timeStr}</div>
-      </div>`;
-    }).join('');
-  }
-
-  // 기타 메모
-  if (log.etcMemo?.trim()) {
-    html += `<div class="wl-memo-text">💬 ${escHtml(log.etcMemo)}</div>`;
-  }
-
-  // 야근 정보
-  if (log.overtime?.exists) {
-    const otEntries = (log.overtime.entries||[]).map(e => {
-      const name = e.projectId==='etc'?'기타':(projects.find(p=>p.id===e.projectId)?.name||e.projectId);
-      return `${escHtml(name)} ${e.percent}%`;
-    }).join(' · ');
-    html += `<div class="wl-ot-info">
-      <span class="badge badge-warning">🌙 야근 ${log.overtime.hours}h</span>
-      ${otEntries ? `<span style="font-size:12px;color:var(--text-2)">${otEntries}</span>` : ''}
+function wlDetailHTML(log, bh) {
+  let html = (log.entries||[]).map(e => {
+    const name = e.projectId==='etc'?'🗂 기타':(allProjects.find(p=>p.id===e.projectId)?.name||e.projectId);
+    const mins = Math.round((e.percent||0)*bh*60/100);
+    const h=Math.floor(mins/60), m=mins%60;
+    return `<div class="wl-detail-row">
+      <div class="wl-proj-name">${escHtml(name)}</div>
+      <div style="flex:1;background:#F1F5F9;border-radius:999px;height:6px;overflow:hidden;margin:0 8px">
+        <div style="width:${e.percent||0}%;height:100%;background:var(--primary-light);border-radius:999px"></div>
+      </div>
+      <div class="wl-pct">${e.percent}%</div>
+      <div class="wl-time">${h?h+'h':''}${m?` ${m}m`:''}</div>
     </div>`;
+  }).join('');
+  if (log.etcMemo?.trim())
+    html += `<div class="wl-memo-text">💬 ${escHtml(log.etcMemo)}</div>`;
+  if (log.overtime?.exists) {
+    const oe = (log.overtime.entries||[]).map(e=>{
+      const n=e.projectId==='etc'?'기타':(allProjects.find(p=>p.id===e.projectId)?.name||e.projectId);
+      return `${escHtml(n)} ${e.percent}%`;
+    }).join(' · ');
+    html += `<div class="wl-ot-info"><span class="badge badge-warning">🌙 야근 ${log.overtime.hours}h</span>${oe?`<span style="font-size:12px;color:var(--text-2)">${oe}</span>`:''}</div>`;
   }
-
   return html;
 }
 
-function wlToggle(id, summaryEl) {
-  const detail = $(id);
-  if (!detail) return;
-  const btn = summaryEl.querySelector('.wl-expand-btn');
-  const isOpen = detail.classList.contains('open');
+function wlToggle(id, el) {
+  const detail=$(id); if(!detail) return;
+  const btn=el.querySelector('.wl-expand-btn');
   detail.classList.toggle('open');
-  if (btn) btn.textContent = isOpen ? '▼' : '▲';
+  if(btn) btn.textContent = detail.classList.contains('open') ? '▲' : '▼';
 }
-
 function wlNavPrev() {
-  const el = $('wl-date');
-  const d = new Date(el.value+'T12:00:00');
-  d.setDate(d.getDate()-1);
-  el.value = d.toISOString().split('T')[0];
-  loadWorkLogs();
+  const el=$('wl-date'), d=new Date(el.value+'T12:00:00');
+  d.setDate(d.getDate()-1); el.value=d.toISOString().split('T')[0]; loadWorkLogs();
 }
 function wlNavNext() {
-  const el = $('wl-date');
-  const d = new Date(el.value+'T12:00:00');
-  d.setDate(d.getDate()+1);
-  el.value = d.toISOString().split('T')[0];
-  loadWorkLogs();
+  const el=$('wl-date'), d=new Date(el.value+'T12:00:00');
+  d.setDate(d.getDate()+1); el.value=d.toISOString().split('T')[0]; loadWorkLogs();
 }
+  const curDev = devSel.value;
+  devSel.innerHTML = '<option value="">전체 개발자</option>' +
+    allDevs.map(d=>`<option value="${d.id}"${d.id===curDev?' selected':''}>${d.name}</option>`).join('');
+
+  const month = $('wl-month').value || monthStr();
+  if (!$('wl-month').value) $('wl-month').value = month;
+
+  const [y,m] = month.split('-').map(Number);
+  const startDate = `${month}-01`;
+  const endDate   = `${month}-${String(daysInMonth(month)).padStart(2,'0')}`;
+
+  showLoad(true);
 
 // ── 생산성 분석 (M/M) ─────────────────────────────────────
 // MM_HOURS = 168h (21일 × 8h) — 상단 상수에 정의됨
