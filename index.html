@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Kaon-PEMS v1.4.2</title>
+<title>Kaon-PEMS v1.4.3</title>
 
 <!-- Firebase SDK (v9 compat) -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -274,7 +274,29 @@ tr:hover td { background: #FAFBFC; }
 .badge-purple { background: #F3E8FF; color: #7C3AED; }
 .badge-invest { background:#EDE9FE;color:#6D28D9;font-size:11px;padding:2px 8px;border-radius:4px;font-weight:700; }
 
-/* ── 생산성 리포트 ── */
+/* ── 업무 이력 일별 뷰 ── */
+.wl-day-row { border-bottom:1px solid #F1F5F9;transition:background .12s; }
+.wl-day-row:last-child { border-bottom:none; }
+.wl-day-summary { display:flex;align-items:center;gap:12px;padding:14px 18px;cursor:pointer; }
+.wl-day-summary:hover { background:#FAFBFC; }
+.wl-dev-name { width:90px;font-size:14px;font-weight:700;flex-shrink:0; }
+.wl-proj-summary { flex:1;font-size:12px;color:var(--text-2); }
+.wl-status-badge { flex-shrink:0; }
+.wl-expand-btn { width:28px;height:28px;border:none;background:none;color:var(--text-3);cursor:pointer;font-size:14px;flex-shrink:0;border-radius:6px;transition:all .12s; }
+.wl-expand-btn:hover { background:#F1F5F9; }
+.wl-detail { display:none;padding:0 18px 16px 120px;background:#FAFBFC; }
+.wl-detail.open { display:block; }
+.wl-detail-row { display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid #F1F5F9;font-size:13px; }
+.wl-detail-row:last-child { border-bottom:none; }
+.wl-proj-name { flex:1;font-weight:600; }
+.wl-pct { width:45px;text-align:right;font-weight:700;color:var(--primary-light); }
+.wl-time { width:60px;text-align:right;font-size:11px;color:var(--text-3); }
+.wl-memo-text { font-size:12px;color:var(--text-2);font-style:italic;padding:6px 0;border-top:1px dashed #E2E8F0;margin-top:4px; }
+.wl-ot-info { display:flex;align-items:center;gap:6px;padding:6px 0;border-top:1px dashed #E2E8F0;margin-top:4px;font-size:12px; }
+.wl-day-nav { display:flex;align-items:center;gap:12px;margin-bottom:16px; }
+.wl-date-label { font-size:16px;font-weight:700;min-width:160px;text-align:center; }
+.wl-team-summary { display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap; }
+.wl-team-stat { display:flex;align-items:center;gap:6px;font-size:13px; }
 .report-stat-grid { display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px; }
 .report-stat { background:white;border:1.5px solid var(--border);border-radius:12px;padding:16px;text-align:center; }
 .report-stat-val { font-size:28px;font-weight:800;color:var(--primary-light);line-height:1; }
@@ -1074,24 +1096,17 @@ select.form-control { cursor: pointer; }
       <div class="page-header">
         <div>
           <div class="page-title">📋 업무 이력</div>
-          <div class="page-subtitle">개발자별 업무 등록 로그</div>
+          <div class="page-subtitle" id="wl-subtitle"></div>
+        </div>
+        <div class="wl-day-nav">
+          <button class="btn btn-secondary btn-xs" onclick="wlNavPrev()">← 전날</button>
+          <input type="date" id="wl-date" class="form-control" style="width:auto" onchange="loadWorkLogs()">
+          <button class="btn btn-secondary btn-xs" onclick="wlNavNext()">다음날 →</button>
         </div>
       </div>
-      <div class="wl-filter">
-        <select id="wl-dev-filter" class="form-control" style="width:160px" onchange="loadWorkLogs()">
-          <option value="">전체 개발자</option>
-        </select>
-        <input type="month" id="wl-month" class="form-control" style="width:auto" onchange="loadWorkLogs()">
-      </div>
+      <div id="wl-team-summary" class="wl-team-summary"></div>
       <div class="card">
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr><th>날짜</th><th>개발자</th><th>근무형태</th><th>투입 내역</th><th>야근</th><th>제출시각</th></tr>
-            </thead>
-            <tbody id="wl-tbody"></tbody>
-          </table>
-        </div>
+        <div id="wl-list" style="padding:0"></div>
       </div>
     </div>
 
@@ -1579,7 +1594,7 @@ select.form-control { cursor: pointer; }
 // ============================================================
 // 버전 관리  x.x.x = 메이저.마이너.패치
 // ============================================================
-const APP_VERSION = 'v1.4.2';
+const APP_VERSION = 'v1.4.3';
 
 const CHANGELOG = [
   {
@@ -4811,63 +4826,155 @@ function renderChangelog(containerId) {
 
 // ── 업무 이력 (관리자) ────────────────────────────────────
 async function loadWorkLogs() {
-  // 필터 드롭다운 채우기
-  const devSel = $('wl-dev-filter');
-  const curDev = devSel.value;
-  devSel.innerHTML = '<option value="">전체 개발자</option>' +
-    allDevs.map(d=>`<option value="${d.id}"${d.id===curDev?' selected':''}>${d.name}</option>`).join('');
-
-  const month = $('wl-month').value || monthStr();
-  if (!$('wl-month').value) $('wl-month').value = month;
-
-  const [y,m] = month.split('-').map(Number);
-  const startDate = `${month}-01`;
-  const endDate   = `${month}-${String(daysInMonth(month)).padStart(2,'0')}`;
+  const dateEl = $('wl-date');
+  if (!dateEl.value) {
+    // 기본값: 어제
+    const y = new Date(); y.setDate(y.getDate()-1);
+    dateEl.value = y.toISOString().split('T')[0];
+  }
+  const dateStr = dateEl.value;
+  const d = new Date(dateStr+'T12:00:00');
+  $('wl-subtitle').textContent =
+    `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일 (${DAYS_KO[d.getDay()]})`;
 
   showLoad(true);
   try {
-    let q = db.collection('dailyLogs')
-      .where('date','>=',startDate)
-      .where('date','<=',endDate)
-      .orderBy('date','desc');
-    if (curDev) q = db.collection('dailyLogs')
-      .where('uid','==',curDev)
-      .where('date','>=',startDate)
-      .where('date','<=',endDate)
-      .orderBy('date','desc');
+    // 해당 날짜 전체 로그 조회 (단일 필드 쿼리)
+    const snap = await db.collection('dailyLogs').where('date','==',dateStr).get();
+    const logs  = snap.docs.map(d=>({id:d.id,...d.data()}));
 
-    const snap = await q.get();
-    const logs = snap.docs.map(d=>({id:d.id,...d.data()}));
+    // 팀 현황 요약
+    const submitted  = allDevs.filter(d => logs.find(l=>l.uid===d.id && l.status==='submitted'));
+    const leaveDevs  = allDevs.filter(d => logs.find(l=>l.uid===d.id && (l.status==='leave_full'||l.status==='leave_am'||l.status==='leave_pm')));
+    const missing    = allDevs.filter(d => !logs.find(l=>l.uid===d.id));
 
-    const tb = $('wl-tbody');
-    if (!logs.length) {
-      tb.innerHTML = `<tr class="empty-row"><td colspan="6"><span class="empty-icon">📋</span>이력이 없습니다.</td></tr>`;
+    $('wl-team-summary').innerHTML = `
+      <div class="wl-team-stat"><span class="badge badge-success">✅ 제출</span><strong>${submitted.length}명</strong></div>
+      <div class="wl-team-stat"><span class="badge badge-purple">🏖️ 휴가</span><strong>${leaveDevs.length}명</strong></div>
+      <div class="wl-team-stat"><span class="badge badge-gray">❌ 미제출</span><strong>${missing.length}명</strong></div>`;
+
+    if (!allDevs.length) {
+      $('wl-list').innerHTML = '<div class="text-muted" style="padding:24px;text-align:center">구성원이 없습니다.</div>';
       showLoad(false); return;
     }
-    tb.innerHTML = logs.map(l => {
-      const dev = allDevs.find(d=>d.id===l.uid);
-      const statusLbl = {submitted:'일반근무',leave_am:'오전반차',leave_pm:'오후반차',leave_full:'연차'}[l.status]||l.status;
-      const statusCls = l.status==='submitted'?'badge-success':l.status==='leave_full'?'badge-purple':'badge-warning';
-      const detail = (l.entries||[]).map(e=>{
-        const pn = e.projectId==='etc'?'기타':(allProjects.find(p=>p.id===e.projectId)?.name||e.projectId);
-        return `${pn}(${e.percent}%)`;
-      }).join(' · ') || '-';
-      const otText = l.overtime?.exists
-        ? `<span class="badge badge-warning">야근 ${l.overtime.hours}h</span>` : '-';
-      const submittedAt = l.submittedAt?.toDate
-        ? l.submittedAt.toDate().toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})
-        : '-';
-      return `<tr>
-        <td>${fmtDate(l.date)}</td>
-        <td><strong>${dev?.name||'-'}</strong></td>
-        <td><span class="badge ${statusCls}">${statusLbl}</span></td>
-        <td style="font-size:12px">${detail}</td>
-        <td>${otText}</td>
-        <td style="font-size:12px;color:var(--text-3)">${submittedAt}</td>
-      </tr>`;
+
+    $('wl-list').innerHTML = allDevs.map(dev => {
+      const log = logs.find(l=>l.uid===dev.id);
+      const bh  = (log?.status==='leave_am'||log?.status==='leave_pm') ? HALF_HOURS : WORK_HOURS;
+
+      // 상태 배지
+      let statusBadge, summaryText;
+      if (!log) {
+        statusBadge = `<span class="badge badge-gray">❌ 미제출</span>`;
+        summaryText = `<span class="text-muted">-</span>`;
+      } else if (log.status==='leave_full') {
+        statusBadge = `<span class="badge badge-purple">🏖️ 연차</span>`;
+        summaryText = `<span class="text-muted">연차 사용</span>`;
+      } else if (log.status==='leave_am'||log.status==='leave_pm') {
+        const lbl = log.status==='leave_am'?'오전 반차':'오후 반차';
+        statusBadge = `<span class="badge badge-warning">${lbl}</span>`;
+        summaryText = wlSummaryText(log, bh, allProjects);
+      } else {
+        statusBadge = `<span class="badge badge-success">✅ 제출</span>`;
+        summaryText = wlSummaryText(log, bh, allProjects);
+      }
+
+      // 상세 내용
+      const detail = log ? wlDetailHTML(log, bh, allProjects) : '';
+
+      return `<div class="wl-day-row">
+        <div class="wl-day-summary" onclick="wlToggle('wld-${dev.id}', this)">
+          <div class="wl-dev-name">${escHtml(dev.name)}</div>
+          <div class="wl-proj-summary">${summaryText}</div>
+          <div class="wl-status-badge">${statusBadge}</div>
+          ${detail ? `<button class="wl-expand-btn" title="상세 보기">▼</button>` : '<span style="width:28px"></span>'}
+        </div>
+        ${detail ? `<div class="wl-detail" id="wld-${dev.id}">${detail}</div>` : ''}
+      </div>`;
     }).join('');
-  } catch(e) { toast(fmtErr(e),'error'); }
+
+  } catch(e) {
+    $('wl-list').innerHTML = `<div class="error-msg" style="margin:16px">${fmtErr(e)}</div>`;
+  }
   showLoad(false);
+}
+
+function wlSummaryText(log, bh, projects) {
+  if (!log?.entries?.length) return '<span class="text-muted">-</span>';
+  return log.entries.map(e => {
+    const name = e.projectId==='etc' ? '기타' : (projects.find(p=>p.id===e.projectId)?.name||e.projectId);
+    const mins = Math.round((e.percent||0)*bh*60/100);
+    const h = Math.floor(mins/60), m = mins%60;
+    const timeStr = h>0 ? `${h}h${m?` ${m}m`:''}` : `${m}m`;
+    return `<span style="margin-right:8px"><strong>${escHtml(name)}</strong> ${e.percent}% <span style="color:var(--text-3);font-size:11px">(${timeStr})</span></span>`;
+  }).join('');
+}
+
+function wlDetailHTML(log, bh, projects) {
+  if (!log) return '';
+  let html = '';
+
+  // 프로젝트별 상세
+  if (log.entries?.length) {
+    html += log.entries.map(e => {
+      const name = e.projectId==='etc' ? '🗂 기타' : (projects.find(p=>p.id===e.projectId)?.name||e.projectId);
+      const mins = Math.round((e.percent||0)*bh*60/100);
+      const h = Math.floor(mins/60), m = mins%60;
+      const timeStr = h>0 ? `${h}h${m?` ${m}m`:''}` : `${m}m`;
+      const barW = Math.round(e.percent||0);
+      return `<div class="wl-detail-row">
+        <div class="wl-proj-name">${escHtml(name)}</div>
+        <div style="flex:1;background:#F1F5F9;border-radius:999px;height:6px;overflow:hidden;margin:0 8px">
+          <div style="width:${barW}%;height:100%;background:var(--primary-light);border-radius:999px"></div>
+        </div>
+        <div class="wl-pct">${e.percent}%</div>
+        <div class="wl-time">${timeStr}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // 기타 메모
+  if (log.etcMemo?.trim()) {
+    html += `<div class="wl-memo-text">💬 ${escHtml(log.etcMemo)}</div>`;
+  }
+
+  // 야근 정보
+  if (log.overtime?.exists) {
+    const otEntries = (log.overtime.entries||[]).map(e => {
+      const name = e.projectId==='etc'?'기타':(projects.find(p=>p.id===e.projectId)?.name||e.projectId);
+      return `${escHtml(name)} ${e.percent}%`;
+    }).join(' · ');
+    html += `<div class="wl-ot-info">
+      <span class="badge badge-warning">🌙 야근 ${log.overtime.hours}h</span>
+      ${otEntries ? `<span style="font-size:12px;color:var(--text-2)">${otEntries}</span>` : ''}
+    </div>`;
+  }
+
+  return html;
+}
+
+function wlToggle(id, summaryEl) {
+  const detail = $(id);
+  if (!detail) return;
+  const btn = summaryEl.querySelector('.wl-expand-btn');
+  const isOpen = detail.classList.contains('open');
+  detail.classList.toggle('open');
+  if (btn) btn.textContent = isOpen ? '▼' : '▲';
+}
+
+function wlNavPrev() {
+  const el = $('wl-date');
+  const d = new Date(el.value+'T12:00:00');
+  d.setDate(d.getDate()-1);
+  el.value = d.toISOString().split('T')[0];
+  loadWorkLogs();
+}
+function wlNavNext() {
+  const el = $('wl-date');
+  const d = new Date(el.value+'T12:00:00');
+  d.setDate(d.getDate()+1);
+  el.value = d.toISOString().split('T')[0];
+  loadWorkLogs();
 }
 
 // ── 생산성 분석 (M/M) ─────────────────────────────────────
