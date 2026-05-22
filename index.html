@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Kaon-PEMS v1.4.3</title>
+<title>Kaon-PEMS v1.4.4</title>
 
 <!-- Firebase SDK (v9 compat) -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -1591,7 +1591,7 @@ select.form-control { cursor: pointer; }
 // ============================================================
 // 버전 관리  x.x.x = 메이저.마이너.패치
 // ============================================================
-const APP_VERSION = 'v1.4.3';
+const APP_VERSION = 'v1.4.4';
 
 const CHANGELOG = [
   {
@@ -3224,10 +3224,24 @@ function renderDailyUI(existing=null, mmHTML='') {
         </label>
         <div id="ot-section" class="${ot.exists?'':'hidden'}">
           <div class="overtime-box mt-12">
-            <div class="overtime-header">야근 정보 입력</div>
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
-              <input type="number" id="ot-hrs-input" class="form-control" style="width:100px" min="0.5" max="12" step="0.5" placeholder="0" value="${ot.hours||''}" oninput="renderOTEntries()">
-              <span class="text-muted">시간 (야근 총 시간)</span>
+            <div class="overtime-header">야근 총 시간 입력</div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+              <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
+                <input type="number" id="ot-h-input" class="time-inp" min="0" max="12" placeholder="0"
+                  value="${Math.floor(ot.hours||0)||''}"
+                  oninput="onOTTimeChange()"
+                  style="-moz-appearance:textfield">
+                <span class="time-sep">시간</span>
+                <input type="number" id="ot-m-input" class="time-inp" min="0" max="59" step="5" placeholder="0"
+                  value="${Math.round(((ot.hours||0)%1)*60)||''}"
+                  oninput="onOTTimeChange()"
+                  style="-moz-appearance:textfield">
+                <span class="time-sep">분</span>
+              </div>
+              <div style="display:flex;gap:4px;flex-wrap:wrap">
+                ${[[0,30,'30분'],[1,0,'1h'],[1,30,'1h 30m'],[2,0,'2h'],[2,30,'2h 30m'],[3,0,'3h']].map(([h,m,l])=>
+                  `<button class="qbtn" onclick="setOTTime(${h},${m})">${l}</button>`).join('')}
+              </div>
             </div>
             <div id="ot-entries">${otEntryRows}</div>
             <div class="divider"></div>
@@ -3454,7 +3468,7 @@ function syncOTTimeToPct(pid) {
   const h = parseInt(hInp?.value) || 0;
   const m = parseInt(mInp?.value) || 0;
   const totalMins = h * 60 + m;
-  const otHrs  = parseFloat($('ot-hrs-input')?.value) || 0;
+  const otHrs  = getOTHours();
   const pctInp = document.querySelector(`.ot-pct[data-pid="${pid}"]`);
   if (!pctInp) return;
   pctInp.value = (otHrs > 0 && totalMins > 0) ? Math.round(totalMins / (otHrs * 60) * 100) : '';
@@ -3466,7 +3480,7 @@ function syncOTTimeToPct(pid) {
 function syncOTPctToTime(pid) {
   const pctInp = document.querySelector(`.ot-pct[data-pid="${pid}"]`);
   const pct    = parseInt(pctInp?.value) || 0;
-  const otHrs  = parseFloat($('ot-hrs-input')?.value) || 0;
+  const otHrs  = getOTHours();
   const totalMins = Math.round(pct * otHrs * 60 / 100);
   const hInp = document.querySelector(`.ot-h-inp[data-pid="${pid}"]`);
   const mInp = document.querySelector(`.ot-m-inp[data-pid="${pid}"]`);
@@ -3528,6 +3542,24 @@ function fmtErr(e) {
   return e.message || '오류가 발생했습니다.';
 }
 
+// 야근 총 시간 계산 (h/m → decimal)
+function getOTHours() {
+  const h = parseInt($('ot-h-input')?.value) || 0;
+  const m = parseInt($('ot-m-input')?.value) || 0;
+  return h + m / 60;
+}
+
+// 야근 퀵버튼
+function setOTTime(h, m) {
+  const hInp = $('ot-h-input'), mInp = $('ot-m-input');
+  if (hInp) hInp.value = h || '';
+  if (mInp) mInp.value = m || '';
+  renderOTEntries();
+}
+
+// 야근 시간 변경 시 재렌더링
+function onOTTimeChange() { renderOTEntries(); }
+
 function toggleOT() {
   const checked = $('ot-check').checked;
   tog('ot-section', checked);
@@ -3535,7 +3567,7 @@ function toggleOT() {
 }
 
 function renderOTEntries() {
-  const hrs  = parseFloat($('ot-hrs-input')?.value)||0;
+  const hrs  = getOTHours();
   const cont = $('ot-entries');
   if (!cont) return;
   const rows = [
@@ -3570,7 +3602,7 @@ function renderOTEntries() {
 
 function calcOtTotal() {
   const inputs = document.querySelectorAll('.ot-pct');
-  const hrs    = parseFloat($('ot-hrs-input')?.value)||0;
+  const hrs    = getOTHours();
   let total = 0;
   inputs.forEach(inp => { total += parseInt(inp.value)||0; });
   const disp = $('ot-total');
@@ -3629,7 +3661,7 @@ async function submitDaily() {
   if (entries.reduce((s,e)=>s+e.percent,0)!==100) { toast('합계가 100%여야 합니다.','error'); return; }
 
   const otCheck = $('ot-check')?.checked;
-  const otHrs   = parseFloat($('ot-hrs-input')?.value)||0;
+  const otHrs   = getOTHours();
   let overtime  = {exists:false};
   if (otCheck && otHrs>0) {
     const otEntries = [];
@@ -3688,7 +3720,7 @@ async function loadHistory() {
         const pn = e.projectId==='etc'?`기타${e.memo?`(${e.memo})`:''}`:(myProjects.find(p=>p.id===e.projectId)?.name||e.projectId);
         return `${pn} <strong>${e.percent}%</strong>(${e.hours}h)`;
       }).join(' · ');
-      const otText = log.overtime?.exists ? `<span class="text-warning"> +야근${log.overtime.hours}h</span>` : '';
+      const otText = log.overtime?.exists ? `<span class="text-warning"> +야근 ${minsToHM(Math.round((log.overtime.hours||0)*60))}</span>` : '';
       return `<tr><td>${disp}</td><td>${lbl}</td><td><span class="badge ${leaveLbl?'badge-warning':'badge-success'}">${leaveLbl?`🌗 ${leaveLbl}`:'✅ 완료'}</span></td><td style="font-size:12px">${detail}${otText}</td></tr>`;
     }).join('');
   } catch(e) { toast(fmtErr(e),'error'); }
@@ -4905,7 +4937,7 @@ function wlDetailHTML(log, bh) {
       const n=e.projectId==='etc'?'기타':(allProjects.find(p=>p.id===e.projectId)?.name||e.projectId);
       return `${escHtml(n)} ${e.percent}%`;
     }).join(' · ');
-    html += `<div class="wl-ot-info"><span class="badge badge-warning">🌙 야근 ${log.overtime.hours}h</span>${oe?`<span style="font-size:12px;color:var(--text-2)">${oe}</span>`:''}</div>`;
+    html += `<div class="wl-ot-info"><span class="badge badge-warning">🌙 야근 ${minsToHM(Math.round((log.overtime.hours||0)*60))}</span>${oe?`<span style="font-size:12px;color:var(--text-2)">${oe}</span>`:''}</div>`;
   }
   return html;
 }
