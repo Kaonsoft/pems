@@ -314,6 +314,9 @@ tr:hover td { background: #FAFBFC; }
 .wc-none { background:#F1F5F9;color:#94A3B8; }
 .report-member-row { display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid #F8FAFC;cursor:pointer;transition:background .12s; }
 .report-member-row:hover { background:#FAFBFC; }
+.wk-team-row { border-bottom:1px solid #F8FAFC;cursor:pointer;transition:background .12s; }
+.wk-team-row:hover td { background:#FAFBFC; }
+.wk-team-row:last-child { border-bottom:none; }
 .report-tabs { display:flex;gap:4px;margin-bottom:16px; }
 .report-tab { padding:8px 18px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:1.5px solid var(--border);background:white;color:var(--text-2);transition:all .12s; }
 .report-tab.active { background:var(--primary-light);color:white;border-color:var(--primary-light); }
@@ -4407,7 +4410,7 @@ async function renderWeeklyContent() {
   const todayWs = getWeekStart(today());
   const isThis = ws === todayWs;
 
-  const tabs = isAdmin ? ['plan','result','team'] : ['plan','result'];
+  const tabs = (isAdmin || hasPerm('weekly')) ? ['plan','result','team'] : ['plan','result'];
   const tabLbls = {plan:'📋 업무 계획', result:'📊 업무 결과', team:'👥 팀 현황'};
 
   const navBar = `<div class="week-nav">
@@ -4727,41 +4730,63 @@ async function renderWkTeam(ws) {
     plans.docs.forEach(d=>pm[d.data().uid]=d.data());
     reps.docs.forEach(d=>rm[d.data().uid]=d.data());
 
-    const hdr=`<div style="display:flex;align-items:center;padding:8px 16px;border-bottom:1px solid var(--border);background:#F8FAFC">
-      <span style="width:50px"></span>
-      <span style="flex:1;font-size:10px;font-weight:700;color:var(--text-3)">구성원</span>
-      <span style="width:90px;text-align:center;font-size:10px;font-weight:700;color:var(--text-3)">계획</span>
-      <span style="width:90px;text-align:center;font-size:10px;font-weight:700;color:var(--text-3)">결과</span>
-      <span style="width:110px;text-align:center;font-size:10px;font-weight:700;color:var(--text-3)">반복 업무</span>
-      <span style="width:20px"></span>
-    </div>`;
+    if (!allDevs.length) {
+      tc.innerHTML='<div class="text-muted" style="padding:32px;text-align:center">구성원이 없습니다.</div>';
+      showLoad(false); return;
+    }
 
-    const rows=allDevs.map(dev=>{
+    const rows = allDevs.map(dev => {
       const plan=pm[dev.id], rep=rm[dev.id];
       const pSt=plan?.status, rSt=rep?.status;
-      const pB=pSt==='submitted'?'<span class="badge badge-success">✅ 제출</span>':
-                pSt==='draft'?'<span class="badge badge-warning">임시저장</span>':
-                '<span class="badge badge-gray">미제출</span>';
-      const rB=rSt==='submitted'?'<span class="badge badge-success">✅ 제출</span>':
-                rSt==='draft'?'<span class="badge badge-warning">임시저장</span>':
-                '<span class="badge badge-gray">미제출</span>';
-      const repeatCnt=(plan?.items||[]).filter(i=>(i.repeatCount||0)>=2).length;
-      const rb=repeatCnt>0?`<span class="repeat-badge">🔄 ${repeatCnt}건</span>`:`<span class="text-muted">-</span>`;
-      return `<div class="weekly-admin-row" onclick="viewMemberWk('${dev.id}','${escHtml(dev.name)}','${ws}')">
-        <div class="member-avatar av-approved" style="width:34px;height:34px;font-size:13px;flex-shrink:0">${dev.name.charAt(0)}</div>
-        <div style="flex:1">
-          <div style="font-size:13px;font-weight:700">${escHtml(dev.name)}</div>
-          <div style="font-size:11px;color:var(--text-3)">${escHtml(dev.email)}</div>
-        </div>
-        <div style="width:90px;text-align:center">${pB}</div>
-        <div style="width:90px;text-align:center">${rB}</div>
-        <div style="width:110px;text-align:center">${rb}</div>
-        <span style="color:var(--text-3);font-size:14px">›</span>
-      </div>`;
-    }).join('')||'<div class="text-muted" style="padding:24px;text-align:center">구성원이 없습니다.</div>';
 
-    tc.innerHTML=`<div class="card"><div class="card-body" style="padding:0">${hdr}${rows}</div></div>`;
-  } catch(e){ tc.innerHTML=`<div class="error-msg" style="margin:16px">조회 실패: ${e.message}</div>`; }
+      const pB = pSt==='submitted' ? '<span class="badge badge-success">✅ 제출</span>' :
+                 pSt==='draft'     ? '<span class="badge badge-warning">임시저장</span>' :
+                                     '<span class="badge badge-gray">미제출</span>';
+      const rB = rSt==='submitted' ? '<span class="badge badge-success">✅ 제출</span>' :
+                 rSt==='draft'     ? '<span class="badge badge-warning">임시저장</span>' :
+                                     '<span class="badge badge-gray">미제출</span>';
+
+      const repeatCnt = (plan?.items||[]).filter(i=>(i.repeatCount||0)>=2).length;
+      const rb = repeatCnt > 0
+        ? `<span class="repeat-badge">🔄 ${repeatCnt}건</span>`
+        : '<span class="text-muted" style="font-size:13px">-</span>';
+
+      return `<tr class="wk-team-row" onclick="viewMemberWk('${dev.id}','${escHtml(dev.name)}','${ws}')">
+        <td style="padding:12px 16px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div class="member-avatar av-approved" style="width:34px;height:34px;font-size:14px;flex-shrink:0">${dev.name.charAt(0)}</div>
+            <div>
+              <div style="font-size:13px;font-weight:700">${escHtml(dev.name)}</div>
+              <div style="font-size:11px;color:var(--text-3)">${escHtml(dev.email)}</div>
+            </div>
+          </div>
+        </td>
+        <td style="padding:12px 16px;text-align:center">${pB}</td>
+        <td style="padding:12px 16px;text-align:center">${rB}</td>
+        <td style="padding:12px 16px;text-align:center">${rb}</td>
+        <td style="padding:12px 16px;text-align:center;color:var(--text-3);font-size:16px">›</td>
+      </tr>`;
+    }).join('');
+
+    tc.innerHTML = `<div class="card">
+      <div class="card-body" style="padding:0">
+        <table style="width:100%;border-collapse:collapse">
+          <thead>
+            <tr style="background:#F8FAFC;border-bottom:1.5px solid var(--border)">
+              <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:700;color:var(--text-3)">구성원</th>
+              <th style="padding:10px 16px;text-align:center;font-size:11px;font-weight:700;color:var(--text-3);width:110px">계획</th>
+              <th style="padding:10px 16px;text-align:center;font-size:11px;font-weight:700;color:var(--text-3);width:110px">결과</th>
+              <th style="padding:10px 16px;text-align:center;font-size:11px;font-weight:700;color:var(--text-3);width:120px">반복 업무</th>
+              <th style="width:40px"></th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+  } catch(e) {
+    tc.innerHTML=`<div class="error-msg" style="margin:16px">${fmtErr(e)}</div>`;
+  }
   showLoad(false);
 }
 
