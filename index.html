@@ -4410,7 +4410,7 @@ async function renderWeeklyContent() {
   const todayWs = getWeekStart(today());
   const isThis = ws === todayWs;
 
-  const tabs = (isAdmin || hasPerm('weekly')) ? ['plan','result','team'] : ['plan','result'];
+  const tabs = isAdmin ? ['plan','result','team'] : ['plan','result'];
   const tabLbls = {plan:'📋 업무 계획', result:'📊 업무 결과', team:'👥 팀 현황'};
 
   const navBar = `<div class="week-nav">
