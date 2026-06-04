@@ -4430,7 +4430,7 @@ async function renderWeeklyContent() {
   cont.innerHTML = navBar + tabBar + '<div id="wk-tc" style="min-height:200px"><div class="text-muted" style="padding:32px;text-align:center">로딩 중...</div></div>';
   $('weekly-subtitle').textContent = weekLabel(ws);
 
-  if (_wkTab==='team' && isAdmin) await renderWkTeam(ws);
+  if (_wkTab==='team' && (isAdmin || hasPerm('weekly'))) await renderWkTeam(ws);
   else if (_wkTab==='plan') await renderWkPlan(ws);
   else await renderWkResult(ws);
 }
