@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Kaon-PEMS v1.4.4</title>
+<title>Kaon-PEMS v1.4.5</title>
 
 <!-- Firebase SDK (v9 compat) -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -910,11 +910,11 @@ select.form-control { cursor: pointer; }
 <div id="app-admin" class="hidden">
   <aside class="sidebar">
     <div class="sidebar-header">
-      <div class="sidebar-brand">
+      <div class="sidebar-brand" onclick="adminGo('dashboard')" style="cursor:pointer" title="대시보드로 이동">
         <div class="sidebar-brand-icon">🏢</div>
         <div class="sidebar-brand-text">
           <h2>가온소프트랩</h2>
-          <p>PEMS <span id="ver-badge" style="font-size:10px;background:rgba(59,130,246,0.3);color:#93C5FD;padding:1px 6px;border-radius:4px;font-weight:700;"></span></p>
+          <p>PEMS <span id="ver-badge" style="font-size:10px;background:rgba(59,130,246,0.3);color:#93C5FD;padding:1px 6px;border-radius:4px;font-weight:700;">v1.4.5</span></p>
         </div>
       </div>
     </div>
@@ -1594,7 +1594,7 @@ select.form-control { cursor: pointer; }
 // ============================================================
 // 버전 관리  x.x.x = 메이저.마이너.패치
 // ============================================================
-const APP_VERSION = 'v1.4.4';
+const APP_VERSION = 'v1.4.5';
 
 const CHANGELOG = [
   {
@@ -1800,6 +1800,7 @@ const PERM_MENUS = [
   { id:'projects',     icon:'📁', label:'프로젝트 관리' },
   { id:'members',      icon:'🪪', label:'회원 관리' },
   { id:'workLogs',     icon:'📋', label:'업무 이력' },
+  { id:'weekly',       icon:'📅', label:'위클리 현황' },
 ];
 
 function defaultPermissions() {
@@ -4385,12 +4386,15 @@ function weekLabel(ws) {
 }
 function wkId() { return Date.now().toString(36)+Math.random().toString(36).substr(2,4); }
 function newPlanItem(from=null) {
+  const newId = wkId();
   return {
-    id: wkId(),
+    id:          newId,
+    originId:    from?.originId || from?.id || newId,  // 최초 생성 ID 추적
     projectId:   from?.projectId||'',
     projectName: from?.projectName||'',
     task:        from?.task||'',
     priority:    from?.priority||'medium',
+    startDate:   from?.startDate||'',
     dueDate:     from?.dueDate||'',
     repeatCount: from ? (from.repeatCount||0)+1 : 0,
   };
@@ -4410,7 +4414,7 @@ async function renderWeeklyContent() {
   const todayWs = getWeekStart(today());
   const isThis = ws === todayWs;
 
-  const tabs = isAdmin ? ['plan','result','team'] : ['plan','result'];
+  const tabs = (isAdmin || hasPerm('weekly')) ? ['plan','result','team'] : ['plan','result'];
   const tabLbls = {plan:'📋 업무 계획', result:'📊 업무 결과', team:'👥 팀 현황'};
 
   const navBar = `<div class="week-nav">
@@ -4436,15 +4440,73 @@ function wkPrev() { _wkViewDate=getPrevWS(_wkViewDate); renderWeeklyContent(); }
 function wkNext() { _wkViewDate=getNextWS(_wkViewDate); renderWeeklyContent(); }
 
 // ── 계획 탭 ──────────────────────────────────────────────
+// 진행 중인 업무 자동 등록 (종료일 >= 현재 주, 미완료 항목)
+async function wkAutoPopulate(ws, uid) {
+  try {
+    const [plansSnap, repsSnap] = await Promise.all([
+      db.collection('weeklyPlans').where('uid','==',uid).get(),
+      db.collection('weeklyReports').where('uid','==',uid).get(),
+    ]);
+
+    // 완료 처리된 originId 수집
+    const completedOriginIds = new Set();
+    repsSnap.docs.forEach(d => {
+      (d.data().results||[]).forEach(r => {
+        if (r.status === 'done') {
+          completedOriginIds.add(r.planItemId);
+          if (r.originId) completedOriginIds.add(r.originId);
+        }
+      });
+    });
+
+    // 이전 주차에서 활성 항목 수집 (최신 주차 우선)
+    const activeItems = [];
+    const seenOriginIds = new Set();
+
+    plansSnap.docs
+      .map(d => d.data())
+      .filter(p => p.weekStart < ws)           // 이전 주차만
+      .sort((a,b) => b.weekStart.localeCompare(a.weekStart)) // 최신순
+      .forEach(plan => {
+        (plan.items||[]).forEach(item => {
+          if (!item.dueDate) return;           // 종료일 없으면 제외
+          if (item.dueDate < ws) return;       // 종료일 지난 항목 제외
+          const oid = item.originId || item.id;
+          if (completedOriginIds.has(item.id) ||
+              completedOriginIds.has(oid)) return; // 완료된 항목 제외
+          if (seenOriginIds.has(oid)) return;  // 중복 제외
+          seenOriginIds.add(oid);
+          activeItems.push(newPlanItem(item));
+        });
+      });
+
+    return activeItems;
+  } catch(e) {
+    console.warn('자동 등록 실패:', e);
+    return [];
+  }
+}
+
 async function renderWkPlan(ws) {
   const uid = currentUser.uid;
   const doc = await db.collection('weeklyPlans').doc(`${uid}_${ws}`).get();
   const saved = doc.exists ? doc.data() : null;
-  _wkPlanItems = saved?.items ? saved.items.map(i=>({...i})) : [newPlanItem()];
-  renderWkPlanUI(saved?.status);
+
+  if (saved?.items?.length) {
+    // 기존 저장된 계획 로드
+    _wkPlanItems = saved.items.map(i=>({...i}));
+    renderWkPlanUI(saved?.status, 0);
+  } else {
+    // 신규 주차 → 진행 중인 업무 자동 등록
+    showLoad(true);
+    const autoItems = await wkAutoPopulate(ws, uid);
+    showLoad(false);
+    _wkPlanItems = autoItems.length ? autoItems : [newPlanItem()];
+    renderWkPlanUI(null, autoItems.length);
+  }
 }
 
-function renderWkPlanUI(savedStatus) {
+function renderWkPlanUI(savedStatus, autoCount=0) {
   const tc = $('wk-tc'); if(!tc) return;
   const isDraft = savedStatus==='draft';
   const isSubmitted = savedStatus==='submitted';
@@ -4460,10 +4522,15 @@ function renderWkPlanUI(savedStatus) {
       </div>
     </div>
     <div class="card-body">
+      ${autoCount > 0 ? `<div class="info-notice" style="margin-bottom:12px;display:flex;align-items:center;gap:8px">
+        🔄 진행 중인 업무 <strong>${autoCount}건</strong>이 자동으로 등록되었습니다.
+        <span class="text-muted" style="font-size:12px">(종료일이 남아있고 미완료인 항목)</span>
+      </div>` : ''}
       <div class="weekly-col-hdr">
         <span style="width:90px">우선순위</span>
         <span style="width:130px">프로젝트</span>
         <span style="flex:1">업무 내용</span>
+        <span style="width:270px;text-align:center">시작일 ~ 종료일</span>
       </div>
       <div id="wk-plan-rows">${_wkPlanItems.map(wkPlanRowHTML).join('')}</div>
       <button class="btn btn-secondary btn-xs mt-12" onclick="addWkPlan()">+ 항목 추가</button>
@@ -4498,8 +4565,15 @@ function wkPlanRowHTML(item) {
     </select>
     <input class="wtask" type="text" value="${escHtml(item.task||'')}" placeholder="업무 내용 입력"
       oninput="updWkPlan('${item.id}','task',this.value)">
-    <input type="date" class="wdue" value="${item.dueDate||''}"
-      title="마감일" onchange="updWkPlan('${item.id}','dueDate',this.value)">
+    <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
+      <input type="date" class="wdue" value="${item.startDate||''}"
+        title="시작일" onchange="updWkPlan('${item.id}','startDate',this.value)"
+        style="width:130px">
+      <span style="color:var(--text-3);font-size:12px">~</span>
+      <input type="date" class="wdue" value="${item.dueDate||''}"
+        title="종료일" onchange="updWkPlan('${item.id}','dueDate',this.value)"
+        style="width:130px">
+    </div>
     ${repeatBadge}
     <button class="wdel-btn" onclick="delWkPlan('${item.id}')">✕</button>
   </div>`;
@@ -4629,13 +4703,18 @@ function wkResultRowHTML(item) {
   const rb = item.repeatCount>=2?`<span class="repeat-badge">🔄 ${item.repeatCount}주 반복</span>`:
              item.repeatCount===1?`<span class="carry-badge">↩ 이월</span>`:'';
 
-  // 마감일 표시
+  // 날짜 범위 표시
   let dueHtml = '';
-  if (item.dueDate) {
+  if (item.startDate || item.dueDate) {
     const t = today();
-    const dueClass = item.dueDate < t ? 'overdue' : item.dueDate <= getNextWS(t) ? 'soon' : '';
-    const dueIcon  = item.dueDate < t ? '🚨' : item.dueDate <= getNextWS(t) ? '⏰' : '📅';
-    dueHtml = `<span class="due-label ${dueClass}">${dueIcon} ~ ${fmtDate(item.dueDate)}</span>`;
+    const dueClass = item.dueDate && item.dueDate < t ? 'overdue' :
+                     item.dueDate && item.dueDate <= getNextWS(t) ? 'soon' : '';
+    const dueIcon  = item.dueDate && item.dueDate < t ? '🚨' :
+                     item.dueDate && item.dueDate <= getNextWS(t) ? '⏰' : '📅';
+    const range = item.startDate && item.dueDate
+      ? `${item.startDate} ~ ${item.dueDate}`
+      : item.dueDate ? `~ ${item.dueDate}` : item.startDate ? `${item.startDate} ~` : '';
+    dueHtml = `<span class="due-label ${dueClass}">${dueIcon} ${range}</span>`;
   }
 
   return `<div class="wrr">
@@ -4812,6 +4891,7 @@ async function viewMemberWk(uid, name, ws) {
       <td style="padding:8px 6px"><span class="priority-label ${plCls}" style="width:auto;padding:2px 6px">${{high:'🔴 높음',medium:'🟡 중간',low:'🟢 낮음'}[pi.priority]||'-'}</span></td>
       <td style="padding:8px 6px;font-size:12px;color:var(--text-2)">${escHtml(pi.projectName||'-')}</td>
       <td style="padding:8px 6px;font-size:13px">${escHtml(pi.task)}${rb}</td>
+      <td style="padding:8px 6px;font-size:11px;color:var(--text-3)">${pi.startDate||'-'}</td>
       <td style="padding:8px 6px;font-size:11px;color:var(--text-3)">${pi.dueDate?fmtDate(pi.dueDate):'-'}</td>
       <td style="padding:8px 6px">${res?stLbl[res.status]||'미입력':'<span class="text-muted">미입력</span>'}</td>
       <td style="padding:8px 6px;font-size:12px;color:var(--text-3)">${escHtml(res?.memo||'-')}</td>
@@ -4833,8 +4913,9 @@ async function viewMemberWk(uid, name, ws) {
     <table style="width:100%;border-collapse:collapse">
       <thead><tr>
         <th style="${thStyle}">우선순위</th><th style="${thStyle}">프로젝트</th>
-        <th style="${thStyle}">업무 내용</th><th style="${thStyle}">마감일</th>
-        <th style="${thStyle}">결과</th><th style="${thStyle}">메모</th>
+        <th style="${thStyle}">업무 내용</th><th style="${thStyle}">시작일</th>
+        <th style="${thStyle}">종료일</th><th style="${thStyle}">결과</th>
+        <th style="${thStyle}">메모</th>
       </tr></thead>
       <tbody>${planTbody}</tbody>
     </table>
